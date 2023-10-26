@@ -1,0 +1,13 @@
+namespace: "maidul98"
+name: "infisical"
+version: "1.0.0"
+description: The Infisical collection.
+readme: "README.md"
+authors:
+  - "Infisical (https://infisical.com)"
+license:
+  - "MIT"
+tags:
+  - demo
+  - collection
+repository: "https://github.com/Infisical/ansible-collection"

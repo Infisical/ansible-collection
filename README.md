@@ -17,7 +17,7 @@ Requires Python 3.7 or greater.
 
 You can install the Infisical collection with the Ansible Galaxy CLI:
 
-    ansible-galaxy collection install maidul98.infisical_vault
+    ansible-galaxy collection install infisical.vault
 
 The python module dependencies are not installed by `ansible-galaxy`.  They can
 be manually installed using pip:

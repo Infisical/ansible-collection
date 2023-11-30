@@ -56,7 +56,7 @@ vars:
   read_all_secrets_within_scope: "{{ lookup('infisical_vault', token='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
 
-  read_secret_by_name_within_scope: "{{ lookup('infisical_vault', token='<>', path='/', env_slug='dev', name='HOST', url='https://spotify.infisical.com') }}"
+  read_secret_by_name_within_scope: "{{ lookup('infisical_vault', token='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
 """
 
@@ -87,12 +87,11 @@ class LookupModule(LookupBase):
 
     def get_single_secret(self, client, secret_name, environment, path):
         try:
-            print(secret_name, environment, path)
             secret = client.get_secret(secret_name=secret_name, environment=environment, path=path)
-            return [{"value": s.secret_value, "key": s.secret_name}]
+            return [{"value": secret.secret_value, "key": secret.secret_name}]
         except Exception as e:
             print(e)
-            raise AnsibleError(f"Error fetching all secrets {e}")
+            raise AnsibleError(f"Error fetching single secret {e}")
 
     def get_all_secrets(self, client, environment="dev", path="/"):
         try:

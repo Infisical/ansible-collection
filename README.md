@@ -1,7 +1,7 @@
 # Infisical Collection
 This Ansible Infisical collection includes a variety of Ansible content to help automate the management of Infisical services. This collection is maintained by the Infisical team.
 
-[View full documentation](https://galaxy.ansible.com/ui/repo/published/infisical_inc/vault/)
+[View full documentation](https://galaxy.ansible.com/ui/repo/published/infisical/vault/)
 
 ## Ansible version compatibility
 

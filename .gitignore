@@ -1,0 +1,5 @@
+.venv/**/*
+ansible.cfg
+inventory
+test.yml
+__pycache__

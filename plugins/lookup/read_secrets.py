@@ -3,9 +3,10 @@ from ansible.plugins.lookup import LookupBase
 
 HAS_INFISICAL = False
 try:
-    from infisical import InfisicalClient
+    from infisical_client import InfisicalClient, ClientSettings, GetSecretOptions, ListSecretsOptions
     HAS_INFISICAL = True
-except ImportError:
+except ImportError as e:
+    print(e)
     HAS_INFISICAL = False
 
 DOCUMENTATION = r"""
@@ -19,10 +20,17 @@ description:
   - Secrets can be located either by their name for individual secret loopups or by environment/folder path to return all secrets within the given scope.
 
 options:
-  token:
-    description: The Infisical token used to authenticate 
+  universal_auth_client_id:
+    description: The Machine Identity Client ID used to authenticate
     env:
-      - name: INFISICAL_TOKEN
+      - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_ID
+    required: True
+    type: string
+    version_added: 1.0.0
+  universal_auth_client_secret:
+    description: The Machine Identity Client Secret used to authenticate
+    env:
+      - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_SECRET
     required: True
     type: string
     version_added: 1.0.0
@@ -44,6 +52,11 @@ options:
     required: True
     type: string
     version_added: 1.0.0
+  project_id:
+    description: "The ID of the project where the secrets are stored"
+    required: True
+    type: string
+    version_added: 1.0.0
   secret_name:
     description: The name of the secret that should be fetched. The name should be exactly as it appears in Infisical
     required: False
@@ -53,10 +66,10 @@ options:
 
 EXAMPLES = r"""
 vars:
-  read_all_secrets_within_scope: "{{ lookup('infisical_vault', token='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
+  read_all_secrets_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
 
-  read_secret_by_name_within_scope: "{{ lookup('infisical_vault', token='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
+  read_secret_by_name_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
 """
 
@@ -65,38 +78,66 @@ class LookupModule(LookupBase):
         self.set_options(var_options=variables, direct=kwargs)
 
         if not HAS_INFISICAL:
-          raise AnsibleError("Please pip install infisical to use the infisical_vault lookup module.")
+          raise AnsibleError("Please pip install infisical-python to use the infisical_vault lookup module.")
 
-        infisical_token = self.get_option("token")
+        machine_identity_client_id = self.get_option("universal_auth_client_id")
+        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
         url = self.get_option("url")
 
-        if not infisical_token:
-            raise AnsibleError("Infisical token is required")
+        # Check if the required environment variables are set
+        if not machine_identity_client_id or not machine_identity_client_secret:
+            raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
+
+
+
+
+        # Create the client settings
+        settings = ClientSettings(
+            client_id=machine_identity_client_id,
+            client_secret=machine_identity_client_secret,
+            site_url=url
+        )
 
         # Initialize the Infisical client
-        client = InfisicalClient(token=infisical_token, site_url=url)
+        client = InfisicalClient(settings=settings)
 
         secretName = kwargs.get('secret_name')
         envSlug = kwargs.get('env_slug')
         path = kwargs.get('path')
+        project_id = kwargs.get('project_id')
 
         if secretName:
-            return self.get_single_secret(client, secretName, envSlug, path)
+            return self.get_single_secret(client, project_id, secretName, envSlug, path)
         else:
-            return self.get_all_secrets(client, envSlug, path)
+            return self.get_all_secrets(client, project_id, envSlug, path)
 
-    def get_single_secret(self, client, secret_name, environment, path):
+    def get_single_secret(self, client, project_id,  secret_name, environment, path):
         try:
-            secret = client.get_secret(secret_name=secret_name, environment=environment, path=path)
-            return [{"value": secret.secret_value, "key": secret.secret_name}]
+            
+            options = GetSecretOptions(
+                environment=environment,
+                project_id=project_id,
+                secret_name=secret_name,
+                path=path,
+                type="shared"
+            )
+
+            secret = client.getSecret(options=options)
+            return [{"value": secret.secret_value, "key": secret.secret_key}]
         except Exception as e:
             print(e)
             raise AnsibleError(f"Error fetching single secret {e}")
 
-    def get_all_secrets(self, client, environment="dev", path="/"):
+    def get_all_secrets(self, client, project_id, environment="dev", path="/"):
         try:
-            secrets = client.get_all_secrets(environment=environment, path=path)
-            return [{"value": s.secret_value, "key": s.secret_name} for s in secrets]
+            options = ListSecretsOptions(
+                environment=environment,
+                project_id=project_id,
+                path=path,
+            )
+            secrets = client.listSecrets(options=options)
+
+            return [{"value": s.secret_value, "key": s.secret_key} for s in secrets]
         except Exception as e:
             raise AnsibleError(f"Error fetching all secrets {e}")
 

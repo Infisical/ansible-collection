@@ -22,7 +22,7 @@ You can install the Infisical collection with the Ansible Galaxy CLI:
 The python module dependencies are not installed by `ansible-galaxy`.  They can
 be manually installed using pip:
 
-    pip install infisical
+    pip install infisical-python
 
 ## Using this collection
 
@@ -31,10 +31,10 @@ You can either call modules by their Fully Qualified Collection Name (FQCN), suc
 ```yaml
 ---
 vars:
-  read_all_secrets_within_scope: "{{ lookup('infisical.vault.read_secrets', token='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
+  read_all_secrets_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
 
-  read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', token='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
+  read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
 ```
 

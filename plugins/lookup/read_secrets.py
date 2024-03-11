@@ -88,9 +88,6 @@ class LookupModule(LookupBase):
         if not machine_identity_client_id or not machine_identity_client_secret:
             raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
 
-
-
-
         # Create the client settings
         settings = ClientSettings(
             client_id=machine_identity_client_id,

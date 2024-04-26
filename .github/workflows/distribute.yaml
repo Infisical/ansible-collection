@@ -21,4 +21,4 @@ jobs:
                   api_key: "${{ secrets.GALAXY_API_KEY }}"
                   # galaxy_version: "${{ env.RELEASE_VERSION }}"
                   galaxy_version: "1.0.0" # Testing
-                  publish: false # Testing
+                  # publish: false # Testing

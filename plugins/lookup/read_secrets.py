@@ -6,7 +6,6 @@ try:
     from infisical_client import InfisicalClient, ClientSettings, GetSecretOptions, ListSecretsOptions
     HAS_INFISICAL = True
 except ImportError as e:
-    print(e)
     HAS_INFISICAL = False
 
 DOCUMENTATION = r"""

@@ -3,3 +3,4 @@ ansible.cfg
 inventory
 test.yml
 __pycache__
+infisical-vault-1.0.0.tar.gz

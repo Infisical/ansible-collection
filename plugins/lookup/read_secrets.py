@@ -61,12 +61,20 @@ options:
     required: False
     type: string
     version_added: 1.0.0
+  tags:
+    description: The list of tags that filtering secrets
+    required: False
+    type: list[string]
+    version_added: 1.1.0
 """
 
 EXAMPLES = r"""
 vars:
   read_all_secrets_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
+
+  read_all_secrets_within_scope_filtred_by_tags: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com', tags=['smtp']) }}"
+  # [{ "key": "SMTP", "value": "gmail.smtp.edu" }]
 
   read_secret_by_name_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
@@ -96,11 +104,12 @@ class LookupModule(LookupBase):
         envSlug = kwargs.get('env_slug')
         path = kwargs.get('path')
         project_id = kwargs.get('project_id')
+        tags = kwargs.get('tags')
 
         if secretName:
             return self.get_single_secret(client, project_id, secretName, envSlug, path)
         else:
-            return self.get_all_secrets(client, project_id, envSlug, path)
+            return self.get_all_secrets(client, project_id, envSlug, path, tags)
 
     def get_single_secret(self, client, project_id,  secret_name, environment, path):
         try:
@@ -115,7 +124,7 @@ class LookupModule(LookupBase):
         except Exception as e:
             raise AnsibleError(f"Error fetching single secret {e}")
 
-    def get_all_secrets(self, client, project_id, environment="dev", path="/"):
+    def get_all_secrets(self, client, project_id, environment="dev", path="/", tags=[]):
         try:
             secrets = client.secrets.list_secrets(
                 project_id=project_id,

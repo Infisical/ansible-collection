@@ -6,7 +6,6 @@ try:
     from infisical_sdk import InfisicalSDKClient
     HAS_INFISICAL = True
 except ImportError as e:
-    print(e)
     HAS_INFISICAL = False
 
 DOCUMENTATION = r"""

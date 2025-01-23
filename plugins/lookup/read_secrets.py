@@ -3,9 +3,10 @@ from ansible.plugins.lookup import LookupBase
 
 HAS_INFISICAL = False
 try:
-    from infisical_client import InfisicalClient, ClientSettings, GetSecretOptions, ListSecretsOptions
+    from infisical_sdk import InfisicalSDKClient
     HAS_INFISICAL = True
 except ImportError as e:
+    print(e)
     HAS_INFISICAL = False
 
 DOCUMENTATION = r"""
@@ -72,12 +73,12 @@ vars:
   # [{ "key": "HOST", "value": "google.com" }]
 """
 
+
 class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
         self.set_options(var_options=variables, direct=kwargs)
-
         if not HAS_INFISICAL:
-          raise AnsibleError("Please pip install infisical-python to use the infisical_vault lookup module.")
+            raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
 
         machine_identity_client_id = self.get_option("universal_auth_client_id")
         machine_identity_client_secret = self.get_option("universal_auth_client_secret")
@@ -87,18 +88,12 @@ class LookupModule(LookupBase):
         if not machine_identity_client_id or not machine_identity_client_secret:
             raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
 
+        client = InfisicalSDKClient(host=url)
 
-
-
-        # Create the client settings
-        settings = ClientSettings(
-            client_id=machine_identity_client_id,
-            client_secret=machine_identity_client_secret,
-            site_url=url
+        client.auth.universal_auth.login(
+            machine_identity_client_id,
+            machine_identity_client_secret
         )
-
-        # Initialize the Infisical client
-        client = InfisicalClient(settings=settings)
 
         secretName = kwargs.get('secret_name')
         envSlug = kwargs.get('env_slug')
@@ -106,37 +101,46 @@ class LookupModule(LookupBase):
         project_id = kwargs.get('project_id')
 
         if secretName:
-            return self.get_single_secret(client, project_id, secretName, envSlug, path)
+            return self.get_single_secret(
+                client,
+                project_id,
+                secretName,
+                envSlug,
+                path
+            )
         else:
             return self.get_all_secrets(client, project_id, envSlug, path)
 
-    def get_single_secret(self, client, project_id,  secret_name, environment, path):
+    def get_single_secret(
+            self,
+            client,
+            project_id,
+            secret_name,
+            environment,
+            path
+    ):
         try:
-            
-            options = GetSecretOptions(
-                environment=environment,
-                project_id=project_id,
+            secret = client.secrets.get_secret_by_name(
                 secret_name=secret_name,
-                path=path,
-                type="shared"
+                project_id=project_id,
+                environment_slug=environment,
+                secret_path=path
             )
 
-            secret = client.getSecret(options=options)
-            return [{"value": secret.secret_value, "key": secret.secret_key}]
+            return [{"value": secret.secretValue, "key": secret.secretKey}]
         except Exception as e:
             print(e)
             raise AnsibleError(f"Error fetching single secret {e}")
 
     def get_all_secrets(self, client, project_id, environment="dev", path="/"):
         try:
-            options = ListSecretsOptions(
-                environment=environment,
+            secrets = client.secrets.list_secrets(
                 project_id=project_id,
-                path=path,
+                environment_slug=environment,
+                secret_path=path
             )
-            secrets = client.listSecrets(options=options)
 
-            return [{"value": s.secret_value, "key": s.secret_key} for s in secrets]
+            return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
         except Exception as e:
             raise AnsibleError(f"Error fetching all secrets {e}")
 

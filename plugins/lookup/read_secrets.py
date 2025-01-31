@@ -80,25 +80,31 @@ vars:
   # [{ "key": "HOST", "value": "google.com" }]
 """
 
+
 class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
         self.set_options(var_options=variables, direct=kwargs)
-
         if not HAS_INFISICAL:
-          raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
+            raise AnsibleError(
+                "Please pip install infisicalsdk to use the infisical_vault lookup module.")
 
-        machine_identity_client_id = self.get_option("universal_auth_client_id")
-        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
+        machine_identity_client_id = self.get_option(
+            "universal_auth_client_id")
+        machine_identity_client_secret = self.get_option(
+            "universal_auth_client_secret")
         url = self.get_option("url")
 
         # Check if the required environment variables are set
         if not machine_identity_client_id or not machine_identity_client_secret:
-            raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
+            raise AnsibleError(
+                "Please provide the universal_auth_client_id and universal_auth_client_secret")
 
         # Initialize the Infisical client
         client = InfisicalSDKClient(host=url)
-        client.auth.universal_auth.login(client_id=machine_identity_client_id,
-                                         client_secret=machine_identity_client_secret)
+        client.auth.universal_auth.login(
+            client_id=machine_identity_client_id,
+            client_secret=machine_identity_client_secret
+        )
 
         secretName = kwargs.get('secret_name')
         envSlug = kwargs.get('env_slug')
@@ -107,20 +113,33 @@ class LookupModule(LookupBase):
         tags = kwargs.get('tags')
 
         if secretName:
-            return self.get_single_secret(client, project_id, secretName, envSlug, path)
+            return self.get_single_secret(
+                client,
+                project_id,
+                secretName,
+                envSlug,
+                path
+            )
         else:
             return self.get_all_secrets(client, project_id, envSlug, path, tags)
 
-    def get_single_secret(self, client, project_id,  secret_name, environment, path):
+    def get_single_secret(
+            self,
+            client,
+            project_id,
+            secret_name,
+            environment,
+            path
+    ):
         try:
             secret = client.secrets.get_secret_by_name(
                 secret_name=secret_name,
                 project_id=project_id,
                 environment_slug=environment,
-                secret_path=path,
+                secret_path=path
             )
 
-            return [[{"value": secret.secretValue, "key": secret.secretKey}]]
+            return [{"value": secret.secretValue, "key": secret.secretKey}]
         except Exception as e:
             raise AnsibleError(f"Error fetching single secret {e}")
 

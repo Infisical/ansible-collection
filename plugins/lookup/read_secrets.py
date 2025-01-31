@@ -61,12 +61,20 @@ options:
     required: False
     type: string
     version_added: 1.0.0
+  tags:
+    description: The list of tags that filtering secrets
+    required: False
+    type: list[string]
+    version_added: 1.1.0
 """
 
 EXAMPLES = r"""
 vars:
   read_all_secrets_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
+
+  read_all_secrets_within_scope_filtred_by_tags: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com', tags=['smtp']) }}"
+  # [{ "key": "SMTP", "value": "gmail.smtp.edu" }]
 
   read_secret_by_name_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
@@ -77,27 +85,32 @@ class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
         self.set_options(var_options=variables, direct=kwargs)
         if not HAS_INFISICAL:
-            raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
+            raise AnsibleError(
+                "Please pip install infisicalsdk to use the infisical_vault lookup module.")
 
-        machine_identity_client_id = self.get_option("universal_auth_client_id")
-        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
+        machine_identity_client_id = self.get_option(
+            "universal_auth_client_id")
+        machine_identity_client_secret = self.get_option(
+            "universal_auth_client_secret")
         url = self.get_option("url")
 
         # Check if the required environment variables are set
         if not machine_identity_client_id or not machine_identity_client_secret:
-            raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
+            raise AnsibleError(
+                "Please provide the universal_auth_client_id and universal_auth_client_secret")
 
+        # Initialize the Infisical client
         client = InfisicalSDKClient(host=url)
-
         client.auth.universal_auth.login(
-            machine_identity_client_id,
-            machine_identity_client_secret
+            client_id=machine_identity_client_id,
+            client_secret=machine_identity_client_secret
         )
 
         secretName = kwargs.get('secret_name')
         envSlug = kwargs.get('env_slug')
         path = kwargs.get('path')
         project_id = kwargs.get('project_id')
+        tags = kwargs.get('tags')
 
         if secretName:
             return self.get_single_secret(
@@ -108,7 +121,7 @@ class LookupModule(LookupBase):
                 path
             )
         else:
-            return self.get_all_secrets(client, project_id, envSlug, path)
+            return self.get_all_secrets(client, project_id, envSlug, path, tags)
 
     def get_single_secret(
             self,
@@ -128,18 +141,18 @@ class LookupModule(LookupBase):
 
             return [{"value": secret.secretValue, "key": secret.secretKey}]
         except Exception as e:
-            print(e)
             raise AnsibleError(f"Error fetching single secret {e}")
 
-    def get_all_secrets(self, client, project_id, environment="dev", path="/"):
+    def get_all_secrets(self, client, project_id, environment="dev", path="/", tags=[]):
         try:
             secrets = client.secrets.list_secrets(
                 project_id=project_id,
                 environment_slug=environment,
-                secret_path=path
+                secret_path=path,
+                tag_filters=tags
             )
 
-            return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
+            return [[{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]]
         except Exception as e:
             raise AnsibleError(f"Error fetching all secrets {e}")
 

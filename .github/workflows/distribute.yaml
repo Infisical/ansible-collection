@@ -18,6 +18,7 @@ jobs:
                   galaxy_version: "${{ github.ref_name }}"
 
     release-docker:
+        needs: release-galaxy
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v3

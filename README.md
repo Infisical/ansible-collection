@@ -9,7 +9,7 @@ Tested with the Ansible Core >= 2.12.0 versions, and the current development ver
 
 ## Python version compatibility
 
-This collection depends on the Infisical SDK for Python. 
+This collection depends on the [Infisical SDK for Python](https://github.com/Infisical/python-sdk-official). 
 
 Requires Python 3.7 or greater.
 
@@ -22,7 +22,7 @@ You can install the Infisical collection with the Ansible Galaxy CLI:
 The python module dependencies are not installed by `ansible-galaxy`.  They can
 be manually installed using pip:
 
-    pip install infisical-python
+    pip install infisicalsdk
 
 ## Using this collection
 
@@ -33,6 +33,9 @@ You can either call modules by their Fully Qualified Collection Name (FQCN), suc
 vars:
   read_all_secrets_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
+
+  read_all_secrets_within_scope_filtred_by_tags: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com', tags=['smtp']) }}"
+  # [{ "key": "SMTP", "value": "gmail.smtp.edu" }]
 
   read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]

@@ -23,6 +23,7 @@ options:
     description: The Machine Identity Client ID used to authenticate
     env:
       - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_ID
+      - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
     required: True
     type: string
     version_added: 1.0.0
@@ -30,6 +31,7 @@ options:
     description: The Machine Identity Client Secret used to authenticate
     env:
       - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_SECRET
+      - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
     required: True
     type: string
     version_added: 1.0.0
@@ -75,6 +77,7 @@ vars:
 
 class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
+
         self.set_options(var_options=variables, direct=kwargs)
         if not HAS_INFISICAL:
             raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
@@ -128,7 +131,6 @@ class LookupModule(LookupBase):
 
             return [{"value": secret.secretValue, "key": secret.secretKey}]
         except Exception as e:
-            print(e)
             raise AnsibleError(f"Error fetching single secret {e}")
 
     def get_all_secrets(self, client, project_id, environment="dev", path="/"):

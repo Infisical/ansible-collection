@@ -22,7 +22,7 @@ You can install the Infisical collection with the Ansible Galaxy CLI:
 The python module dependencies are not installed by `ansible-galaxy`.  They can
 be manually installed using pip:
 
-    pip install infisical-python
+    pip install infisicalsdk
 
 ## Using this collection
 
@@ -38,6 +38,6 @@ vars:
   # {"SECRET_KEY_1": "secret-value-1", "SECRET_KEY_2": "secret-value-2"} -> Can be accessed as secrets.SECRET_KEY_1
 
   read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
-  # [{ "key": "HOST", "value": "google.com" }]
+  # { "key": "HOST", "value": "google.com" }
 ```
 

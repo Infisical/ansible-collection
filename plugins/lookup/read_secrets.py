@@ -59,7 +59,7 @@ options:
     type: string
     version_added: 1.0.0
   secret_name:
-    description: The name of the secret that should be fetched. The name should be exactly as it appears in Infisical. The returned value is a dictionary
+    description: The name of the secret that should be fetched. The name should be exactly as it appears in Infisical.
     required: False
     type: string
     version_added: 1.0.0

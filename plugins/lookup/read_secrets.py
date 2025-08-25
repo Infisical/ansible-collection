@@ -59,9 +59,14 @@ options:
     type: string
     version_added: 1.0.0
   secret_name:
-    description: The name of the secret that should be fetched. The name should be exactly as it appears in Infisical
+    description: The name of the secret that should be fetched. The name should be exactly as it appears in Infisical. The returned value is a dictionary
     required: False
     type: string
+    version_added: 1.0.0
+  as_dict:
+    description: "Return the listed secrets as a dictionary within a list instead of a list of key-value pairs (defaults to False). When True, returns [{'SECRET_KEY': 'secret_value', ...}] instead of [{'key': 'SECRET_KEY', 'value': 'secret_value'}, ...]. This only applies when reading all secrets within a scope, not when reading a single secret by name."
+    required: False
+    type: bool
     version_added: 1.0.0
 """
 
@@ -69,6 +74,9 @@ EXAMPLES = r"""
 vars:
   read_all_secrets_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
+
+  read_all_secrets_as_dict: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', as_dict=True, url='https://spotify.infisical.com') }}"
+  # [{"HOST": "google.com", "SMTP": "gmail.smtp.edu"}]
 
   read_secret_by_name_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
@@ -98,6 +106,7 @@ class LookupModule(LookupBase):
         )
 
         secretName = kwargs.get('secret_name')
+        asDict = kwargs.get('as_dict')
         envSlug = kwargs.get('env_slug')
         path = kwargs.get('path')
         project_id = kwargs.get('project_id')
@@ -108,10 +117,10 @@ class LookupModule(LookupBase):
                 project_id,
                 secretName,
                 envSlug,
-                path
+                path,
             )
         else:
-            return self.get_all_secrets(client, project_id, envSlug, path)
+            return self.get_all_secrets(client, project_id, envSlug, path, asDict)
 
     def get_single_secret(
             self,
@@ -133,7 +142,7 @@ class LookupModule(LookupBase):
         except Exception as e:
             raise AnsibleError(f"Error fetching single secret {e}")
 
-    def get_all_secrets(self, client, project_id, environment="dev", path="/"):
+    def get_all_secrets(self, client, project_id, environment="dev", path="/", asDict=False):
         try:
             secrets = client.secrets.list_secrets(
                 project_id=project_id,
@@ -141,7 +150,10 @@ class LookupModule(LookupBase):
                 secret_path=path
             )
 
-            return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
+            if asDict:
+                return [{s.secretKey: s.secretValue for s in secrets.secrets}]
+            else:
+                return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
         except Exception as e:
             raise AnsibleError(f"Error fetching all secrets {e}")
 

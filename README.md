@@ -35,7 +35,7 @@ vars:
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
 
    read_all_secrets_as_dict: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', as_dict=True, url='https://spotify.infisical.com') }}"
-  # [{"HOST": "google.com", "SMTP": "gmail.smtp.edu"}]
+  # {"HOST": "google.com", "SMTP": "gmail.smtp.edu"}
 
   read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
   # { "key": "HOST", "value": "google.com" }

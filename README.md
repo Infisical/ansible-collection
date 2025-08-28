@@ -53,6 +53,8 @@ You can also provide the `auth_method`, `universal_auth_client_id`, and `univers
 #### OIDC Auth
 To use OIDC Auth, you'll need to provide the ID of your machine identity, and the OIDC JWT to be used for authentication.
 
+Please note that in order to use OIDC Auth, you must have `1.0.10` or newer of the `infisicalsdk` package installed.
+
 ```yaml
 lookup('infisical.vault.read_secrets', auth_method="oidc-auth" identity_id='<identity-id>', jwt='<oidc-jwt>' ...rest)
 ```

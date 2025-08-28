@@ -64,6 +64,9 @@ You can also provide the `auth_method`, `identity_id`, and `jwt` parameters thro
 | identity_id     | `INFISICAL_IDENTITY_ID`   |
 | jwt             | `INFISICAL_JWT`           |
 
+
+### Examples
+
 ```yaml
 ---
 vars:

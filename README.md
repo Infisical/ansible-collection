@@ -26,7 +26,43 @@ be manually installed using pip:
 
 ## Using this collection
 
-You can either call modules by their Fully Qualified Collection Name (FQCN), such as `infisical.vault.read_secrets`, or you can call modules by their short name if you list the `infisical.vault` collection in the playbook's `collections` keyword:
+You can either call modules by their Fully Qualified Collection Name (FQCN), such as `infisical.vault.read_secrets`, or you can call modules by their short name if you list the `infisical.vault` collection in the playbook's `collections` keyword.
+
+### Authentication
+
+The Infisical Ansible Collection supports Universal Auth and OIDC for authenticating against Infisical.
+
+#### Universal Auth
+Using Universal Auth for authentication is the most straight-forward way to get started with using the Ansible collection. 
+
+To use Universal Auth, you need to provide the Client ID and Client Secret of your Infisical Machine Identity.
+
+```yaml
+lookup('infisical.vault.read_secrets', auth_method="universal-auth" universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>' ...rest)
+```
+
+You can also provide the `auth_method`, `universal_auth_client_id`, and `universal_auth_client_secret` parameters through environment variables:
+
+| Parameter Name               | Environment Variable Name                |
+| ---------------------------- | ---------------------------------------- |
+| auth_method                  | `INFISICAL_AUTH_METHOD`                  |
+| universal_auth_client_id     | `INFISICAL_UNIVERSAL_AUTH_CLIENT_ID`     |
+| universal_auth_client_secret | `INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET` |
+
+
+#### OIDC Auth
+To use OIDC Auth, you'll need to provide the ID of your machine identity, and the OIDC JWT to be used for authentication.
+
+```yaml
+lookup('infisical.vault.read_secrets', auth_method="oidc-auth" identity_id='<identity-id>', jwt='<oidc-jwt>' ...rest)
+```
+You can also provide the `auth_method`, `identity_id`, and `jwt` parameters through environment variables:
+
+| Parameter Name  | Environment Variable Name |
+| --------------- | ------------------------- |
+| auth_method     | `INFISICAL_AUTH_METHOD`   |
+| identity_id     | `INFISICAL_IDENTITY_ID`   |
+| jwt             | `INFISICAL_JWT`           |
 
 ```yaml
 ---

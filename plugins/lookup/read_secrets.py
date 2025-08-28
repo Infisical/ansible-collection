@@ -2,11 +2,28 @@ from ansible.errors import AnsibleError
 from ansible.plugins.lookup import LookupBase
 
 HAS_INFISICAL = False
+INFISICAL_VERSION = None
+
+
 try:
     from infisical_sdk import InfisicalSDKClient
     HAS_INFISICAL = True
+
 except ImportError as e:
     HAS_INFISICAL = False
+
+
+if HAS_INFISICAL:
+    try:
+        from importlib.metadata import version
+        INFISICAL_VERSION = version('infisicalsdk')  # Note: package name might differ
+    except ImportError:
+        # Fallback for Python < 3.8
+        import pkg_resources
+        INFISICAL_VERSION = pkg_resources.get_distribution('infisicalsdk').version
+    except Exception:
+        INFISICAL_VERSION = "unknown"
+
 
 DOCUMENTATION = r"""
 name: read_secrets
@@ -19,12 +36,24 @@ description:
   - Secrets can be located either by their name for individual secret loopups or by environment/folder path to return all secrets within the given scope.
 
 options:
+
+  auth_method:
+    description: The method to use to authenticate with Infisical
+    required: False
+    type: string
+    version_added: 1.1.3
+    default: universal_auth
+    choices:
+      - universal_auth
+      - oidc_auth
+    env:
+      - name: INFISICAL_AUTH_METHOD
   universal_auth_client_id:
     description: The Machine Identity Client ID used to authenticate
     env:
       - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_ID
       - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-    required: True
+    required: False
     type: string
     version_added: 1.0.0
   universal_auth_client_secret:
@@ -32,7 +61,7 @@ options:
     env:
       - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_SECRET
       - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-    required: True
+    required: False
     type: string
     version_added: 1.0.0
   url:
@@ -68,6 +97,21 @@ options:
     required: False
     type: bool
     version_added: 1.0.0
+  identity_id:
+    description: The identity ID of the user that should be authenticated
+    env:
+      - name: INFISICAL_MACHINE_IDENTITY_ID
+    required: False
+    type: string
+    version_added: 1.1.3
+  jwt:
+    description: The JWT of the user that should be authenticated
+    required: False
+    type: string
+    version_added: 1.1.3
+    env:
+      - name: INFISICAL_JWT
+      - name: INFISICAL_OIDC_AUTH_JWT
 """
 
 EXAMPLES = r"""
@@ -83,27 +127,80 @@ vars:
 """
 
 
+
+def parse_version_tuple(version_string):
+    if version_string == "unknown":
+        return (0, 0, 0)  # assume very old version
+    
+    try:
+        parts = version_string.split('.')
+        # haandle missing parts (example: "1.2" becomes "1.2.0")
+        while len(parts) < 3:
+            parts.append('0')
+        
+        return tuple(int(part) for part in parts[:3])  # only take first 3 parts
+    except (ValueError, AttributeError):
+        return (0, 0, 0)
+
+
+def check_minimum_version(current_version, minimum_version):
+    """Check if current version meets minimum requirement."""
+    current_tuple = parse_version_tuple(current_version)
+    minimum_tuple = parse_version_tuple(minimum_version)
+    return current_tuple >= minimum_tuple
+
+
 class LookupModule(LookupBase):
+
+    def get_sdk_client(self):
+      url = self.get_option("url")
+      client = InfisicalSDKClient(host=url)
+
+      method = self.get_option("auth_method")
+
+      if method == "universal_auth":
+
+        machine_identity_client_id = self.get_option("universal_auth_client_id")
+        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
+
+        if not machine_identity_client_id or not machine_identity_client_secret:
+            raise AnsibleError("universal_auth_client_id or universal_auth_client_secret is not set. Please set them to use universal auth.")
+
+        client.auth.universal_auth.login(
+            machine_identity_client_id,
+            machine_identity_client_secret
+        )
+
+      elif method == "oidc_auth":
+
+        # make sure the infisicalsdk version is at least 1.0.10
+        if not check_minimum_version(INFISICAL_VERSION, "1.0.10"):
+            raise AnsibleError("Please upgrade the infisicalsdk to at least 1.0.10 to use oidc auth.")
+
+        identity_id = self.get_option("identity_id")
+        jwt = self.get_option("jwt")
+
+        if not identity_id or not jwt:
+            raise AnsibleError("identity_id or jwt is not set. Please set them to use oidc auth.")
+
+        client.auth.oidc_auth.login(
+            identity_id,
+            jwt
+        )
+      else:
+        raise AnsibleError(f"Invalid auth method. Please use universal_auth or oidc_auth. You provided {method}")
+
+      return client
+
+
+
     def run(self, terms, variables=None, **kwargs):
 
         self.set_options(var_options=variables, direct=kwargs)
         if not HAS_INFISICAL:
             raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
 
-        machine_identity_client_id = self.get_option("universal_auth_client_id")
-        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
-        url = self.get_option("url")
-
-        # Check if the required environment variables are set
-        if not machine_identity_client_id or not machine_identity_client_secret:
-            raise AnsibleError("Please provide the universal_auth_client_id and universal_auth_client_secret")
-
-        client = InfisicalSDKClient(host=url)
-
-        client.auth.universal_auth.login(
-            machine_identity_client_id,
-            machine_identity_client_secret
-        )
+        client = self.get_sdk_client()
 
         secretName = kwargs.get('secret_name')
         asDict = kwargs.get('as_dict')

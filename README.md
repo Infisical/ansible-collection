@@ -30,7 +30,7 @@ You can either call modules by their Fully Qualified Collection Name (FQCN), suc
 
 ### Authentication
 
-The Infisical Ansible Collection supports Universal Auth and OIDC for authenticating against Infisical.
+The Infisical Ansible Collection supports Universal Auth, OIDC, and Token Auth for authenticating against Infisical.
 
 #### Universal Auth
 Using Universal Auth for authentication is the most straight-forward way to get started with using the Ansible collection. 
@@ -53,7 +53,7 @@ You can also provide the `auth_method`, `universal_auth_client_id`, and `univers
 #### OIDC Auth
 To use OIDC Auth, you'll need to provide the ID of your machine identity, and the OIDC JWT to be used for authentication.
 
-Please note that in order to use OIDC Auth, you must have `1.0.10` or newer of the `infisicalsdk` package installed.
+> **Note:** Please note that in order to use OIDC Auth, you must have `1.0.10` or newer of the `infisicalsdk` package installed.
 
 ```yaml
 lookup('infisical.vault.read_secrets', auth_method="oidc-auth" identity_id='<identity-id>', jwt='<oidc-jwt>' ...rest)
@@ -65,6 +65,23 @@ You can also provide the `auth_method`, `identity_id`, and `jwt` parameters thro
 | auth_method     | `INFISICAL_AUTH_METHOD`   |
 | identity_id     | `INFISICAL_IDENTITY_ID`   |
 | jwt             | `INFISICAL_JWT`           |
+
+
+#### Token Auth
+Token Auth is the simplest authentication method that allows you to authenticate directly with an access token. This can be either a [Machine Identity Token Auth](https://infisical.com/docs/documentation/platform/identities/token-auth) token or a User JWT token.
+
+> **Note:** Please note that in order to use Token Auth, you must have `1.0.13` or newer of the `infisicalsdk` package installed.
+
+```yaml
+lookup('infisical.vault.read_secrets', auth_method="token_auth", token='<your-token>' ...rest)
+```
+
+You can also provide the `auth_method` and `token` parameters through environment variables:
+
+| Parameter Name | Environment Variable Name |
+| -------------- | ------------------------- |
+| auth_method    | `INFISICAL_AUTH_METHOD`   |
+| token          | `INFISICAL_TOKEN`         |
 
 
 ### Examples

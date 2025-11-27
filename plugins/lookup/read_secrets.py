@@ -46,6 +46,7 @@ options:
     choices:
       - universal_auth
       - oidc_auth
+      - token_auth
     env:
       - name: INFISICAL_AUTH_METHOD
   universal_auth_client_id:
@@ -112,6 +113,16 @@ options:
     env:
       - name: INFISICAL_JWT
       - name: INFISICAL_OIDC_AUTH_JWT
+  token:
+    description: >
+      An access token used to authenticate with Infisical. This can be either a Machine Identity Token Auth token
+      or a User JWT token. Both token types can be used interchangeably with this field.
+    required: False
+    type: string
+    version_added: 1.1.4
+    env:
+      - name: INFISICAL_TOKEN
+      - name: INFISICAL_AUTH_TOKEN
 """
 
 EXAMPLES = r"""
@@ -187,8 +198,18 @@ class LookupModule(LookupBase):
             identity_id,
             jwt
         )
+
+      elif method == "token_auth":
+
+        token = self.get_option("token")
+
+        if not token:
+            raise AnsibleError("token is not set. Please provide a valid Machine Identity Token Auth token or User JWT to use token_auth.")
+
+        client.auth.token_auth.login(token)
+
       else:
-        raise AnsibleError(f"Invalid auth method. Please use universal_auth or oidc_auth. You provided {method}")
+        raise AnsibleError(f"Invalid auth method. Please use universal_auth, oidc_auth, or token_auth. You provided {method}")
 
       return client
 

@@ -4,6 +4,10 @@ from ansible.plugins.lookup import LookupBase
 HAS_INFISICAL = False
 INFISICAL_VERSION = None
 
+# Authentication Methods
+AUTH_METHOD_UNIVERSAL_AUTH = "universal_auth"
+AUTH_METHOD_OIDC_AUTH = "oidc_auth"
+AUTH_METHOD_TOKEN_AUTH = "token_auth"
 
 try:
     from infisical_sdk import InfisicalSDKClient
@@ -122,7 +126,6 @@ options:
     version_added: 1.1.4
     env:
       - name: INFISICAL_TOKEN
-      - name: INFISICAL_AUTH_TOKEN
 """
 
 EXAMPLES = r"""
@@ -169,7 +172,7 @@ class LookupModule(LookupBase):
 
       method = self.get_option("auth_method")
 
-      if method == "universal_auth":
+      if method == AUTH_METHOD_UNIVERSAL_AUTH:
 
         machine_identity_client_id = self.get_option("universal_auth_client_id")
         machine_identity_client_secret = self.get_option("universal_auth_client_secret")
@@ -182,7 +185,7 @@ class LookupModule(LookupBase):
             machine_identity_client_secret
         )
 
-      elif method == "oidc_auth":
+      elif method == AUTH_METHOD_OIDC_AUTH:
 
         # make sure the infisicalsdk version is at least 1.0.10
         if not check_minimum_version(INFISICAL_VERSION, "1.0.10"):
@@ -199,7 +202,7 @@ class LookupModule(LookupBase):
             jwt
         )
 
-      elif method == "token_auth":
+      elif method == AUTH_METHOD_TOKEN_AUTH:
 
         token = self.get_option("token")
 

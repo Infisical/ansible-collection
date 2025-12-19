@@ -251,17 +251,17 @@ def run_module():
             secret_path=module.params['path'],
         )
         
-        if module.params.get('secret_comment'):
+        if module.params.get('secret_comment') is not None:
             create_kwargs['secret_comment'] = module.params['secret_comment']
-        if module.params.get('tags_ids'):
+        if module.params.get('tags_ids') is not None:
             create_kwargs['tags_ids'] = module.params['tags_ids']
-        if module.params.get('skip_multiline_encoding'):
+        if module.params.get('skip_multiline_encoding') is not None:
             create_kwargs['skip_multiline_encoding'] = module.params['skip_multiline_encoding']
-        if module.params.get('secret_reminder_note'):
+        if module.params.get('secret_reminder_note') is not None:
             create_kwargs['secret_reminder_note'] = module.params['secret_reminder_note']
-        if module.params.get('secret_reminder_repeat_days'):
+        if module.params.get('secret_reminder_repeat_days') is not None:
             create_kwargs['secret_reminder_repeat_days'] = module.params['secret_reminder_repeat_days']
-        if module.params.get('secret_metadata'):
+        if module.params.get('secret_metadata') is not None:
             create_kwargs['secret_metadata'] = module.params['secret_metadata']
         
         secret = client.secrets.create_secret_by_name(**create_kwargs)

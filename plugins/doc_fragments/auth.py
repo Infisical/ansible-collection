@@ -5,14 +5,14 @@ __metaclass__ = type
 # Shared option definitions
 _URL_MODULE = """
   url:
-    description: Point to your self hosted instance of Infisical.
+    description: Point to your self-hosted instance of Infisical.
     type: str
     default: "https://app.infisical.com"
 """
 
 _URL_LOOKUP = """
   url:
-    description: Point to your self hosted instance of Infisical.
+    description: Point to your self-hosted instance of Infisical.
     default: "https://app.infisical.com"
     env:
       - name: INFISICAL_URL

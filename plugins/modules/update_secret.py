@@ -266,19 +266,19 @@ def run_module():
         
         if module.params.get('secret_value') is not None:
             update_kwargs['secret_value'] = module.params['secret_value']
-        if module.params.get('new_secret_name'):
+        if module.params.get('new_secret_name') is not None:
             update_kwargs['new_secret_name'] = module.params['new_secret_name']
         if module.params.get('secret_comment') is not None:
             update_kwargs['secret_comment'] = module.params['secret_comment']
-        if module.params.get('tags_ids'):
+        if module.params.get('tags_ids') is not None:
             update_kwargs['tags_ids'] = module.params['tags_ids']
-        if module.params.get('skip_multiline_encoding'):
+        if module.params.get('skip_multiline_encoding') is not None:
             update_kwargs['skip_multiline_encoding'] = module.params['skip_multiline_encoding']
         if module.params.get('secret_reminder_note') is not None:
             update_kwargs['secret_reminder_note'] = module.params['secret_reminder_note']
         if module.params.get('secret_reminder_repeat_days') is not None:
             update_kwargs['secret_reminder_repeat_days'] = module.params['secret_reminder_repeat_days']
-        if module.params.get('secret_metadata'):
+        if module.params.get('secret_metadata') is not None:
             update_kwargs['secret_metadata'] = module.params['secret_metadata']
         
         secret = client.secrets.update_secret_by_name(**update_kwargs)

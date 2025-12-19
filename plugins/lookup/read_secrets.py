@@ -1,32 +1,12 @@
+from __future__ import absolute_import, division, print_function
+__metaclass__ = type
+
 from ansible.errors import AnsibleError
 from ansible.plugins.lookup import LookupBase
 
-HAS_INFISICAL = False
-INFISICAL_VERSION = None
-
-# Authentication Methods
-AUTH_METHOD_UNIVERSAL_AUTH = "universal_auth"
-AUTH_METHOD_OIDC_AUTH = "oidc_auth"
-AUTH_METHOD_TOKEN_AUTH = "token_auth"
-
-try:
-    from infisical_sdk import InfisicalSDKClient
-    HAS_INFISICAL = True
-
-except ImportError as e:
-    HAS_INFISICAL = False
-
-
-if HAS_INFISICAL:
-    try:
-        from importlib.metadata import version
-        INFISICAL_VERSION = version('infisicalsdk')  # Note: package name might differ
-    except ImportError:
-        # Fallback for Python < 3.8
-        import pkg_resources
-        INFISICAL_VERSION = pkg_resources.get_distribution('infisicalsdk').version
-    except Exception:
-        INFISICAL_VERSION = "unknown"
+from ansible_collections.infisical.vault.plugins.module_utils._authenticator import (
+    InfisicalAuthenticator,
+)
 
 
 DOCUMENTATION = r"""
@@ -38,9 +18,22 @@ short_description: Look up secrets stored in Infisical
 description:
   - Retrieve secrets from Infisical, granted the caller has the right permissions to access the secret.
   - Secrets can be located either by their name for individual secret loopups or by environment/folder path to return all secrets within the given scope.
+  - You can either provide authentication credentials directly, or use C(client) from a previous C(infisical.vault.login) lookup to reuse an authenticated session.
+
+seealso:
+  - ref: infisical.vault.login lookup
+    description: Use the login lookup to authenticate once and reuse the session.
 
 options:
 
+  client:
+    description:
+      - An authenticated Infisical SDK client from a previous C(infisical.vault.login) lookup.
+      - When provided, this client will be reused, avoiding re-authentication.
+      - This is mutually exclusive with direct authentication options (auth_method, universal_auth_client_id, etc.).
+    required: False
+    type: object
+    version_added: 1.2.0
   auth_method:
     description: The method to use to authenticate with Infisical
     required: False
@@ -129,128 +122,84 @@ options:
 """
 
 EXAMPLES = r"""
+# Direct authentication (authenticates on each call)
 vars:
-  read_all_secrets_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', url='https://spotify.infisical.com') }}"
+  read_all_secrets_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>', project_id='<project-id>', path='/', env_slug='dev', url='https://app.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }, { "key": "SMTP", "value": "gmail.smtp.edu" }]
 
-  read_all_secrets_as_dict: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', as_dict=True, url='https://spotify.infisical.com') }}"
+  read_all_secrets_as_dict: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>', project_id='<project-id>', path='/', env_slug='dev', as_dict=True, url='https://app.infisical.com') }}"
   # {"HOST": "google.com", "SMTP": "gmail.smtp.edu"}
 
-  read_secret_by_name_within_scope: "{{ lookup('infisical_vault', universal_auth_client_id='<>', universal_auth_client_secret='<>', project_id='<>', path='/', env_slug='dev', secret_name='HOST', url='https://spotify.infisical.com') }}"
+  read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>', project_id='<project-id>', path='/', env_slug='dev', secret_name='HOST', url='https://app.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
+
+# Using client from infisical.vault.login (recommended for multiple lookups)
+# This avoids re-authenticating on each call
+- name: Login to Infisical once
+  set_fact:
+    infisical_client: "{{ lookup('infisical.vault.login', url='https://app.infisical.com', auth_method='universal_auth', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>') }}"
+
+- name: Read database secrets using cached client
+  set_fact:
+    db_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/database', env_slug='prod') }}"
+
+- name: Read API secrets using the same client (no re-authentication)
+  set_fact:
+    api_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/api', env_slug='prod') }}"
+
+- name: Read a specific secret using cached client
+  set_fact:
+    api_key: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/api', env_slug='prod', secret_name='API_KEY') }}"
 """
-
-
-
-def parse_version_tuple(version_string):
-    if version_string == "unknown":
-        return (0, 0, 0)  # assume very old version
-    
-    try:
-        parts = version_string.split('.')
-        # haandle missing parts (example: "1.2" becomes "1.2.0")
-        while len(parts) < 3:
-            parts.append('0')
-        
-        return tuple(int(part) for part in parts[:3])  # only take first 3 parts
-    except (ValueError, AttributeError):
-        return (0, 0, 0)
-
-
-def check_minimum_version(current_version, minimum_version):
-    """Check if current version meets minimum requirement."""
-    current_tuple = parse_version_tuple(current_version)
-    minimum_tuple = parse_version_tuple(minimum_version)
-    return current_tuple >= minimum_tuple
 
 
 class LookupModule(LookupBase):
 
-    def get_sdk_client(self):
-      url = self.get_option("url")
-      client = InfisicalSDKClient(host=url)
-
-      method = self.get_option("auth_method")
-
-      if method == AUTH_METHOD_UNIVERSAL_AUTH:
-
-        machine_identity_client_id = self.get_option("universal_auth_client_id")
-        machine_identity_client_secret = self.get_option("universal_auth_client_secret")
-
-        if not machine_identity_client_id or not machine_identity_client_secret:
-            raise AnsibleError("universal_auth_client_id or universal_auth_client_secret is not set. Please set them to use universal auth.")
-
-        client.auth.universal_auth.login(
-            machine_identity_client_id,
-            machine_identity_client_secret
+    def _get_sdk_client(self, client=None):
+        """Get an authenticated Infisical SDK client.
+        
+        Args:
+            client: Optional authenticated client from infisical.vault.login lookup.
+        
+        Returns:
+            An authenticated InfisicalSDKClient instance
+        """
+        if client is not None:
+            return client
+        
+        authenticator = InfisicalAuthenticator(
+            url=self.get_option('url'),
+            auth_method=self.get_option('auth_method'),
+            client_id=self.get_option('universal_auth_client_id'),
+            client_secret=self.get_option('universal_auth_client_secret'),
+            identity_id=self.get_option('identity_id'),
+            jwt=self.get_option('jwt'),
+            token=self.get_option('token'),
         )
-
-      elif method == AUTH_METHOD_OIDC_AUTH:
-
-        # make sure the infisicalsdk version is at least 1.0.10
-        if not check_minimum_version(INFISICAL_VERSION, "1.0.10"):
-            raise AnsibleError("Please upgrade the infisicalsdk to at least 1.0.10 to use oidc auth.")
-
-        identity_id = self.get_option("identity_id")
-        jwt = self.get_option("jwt")
-
-        if not identity_id or not jwt:
-            raise AnsibleError("identity_id or jwt is not set. Please set them to use oidc auth.")
-
-        client.auth.oidc_auth.login(
-            identity_id,
-            jwt
-        )
-
-      elif method == AUTH_METHOD_TOKEN_AUTH:
-
-        token = self.get_option("token")
-
-        if not token:
-            raise AnsibleError("token is not set. Please provide a valid Machine Identity Token Auth token or User JWT to use token_auth.")
-
-        client.auth.token_auth.login(token)
-
-      else:
-        raise AnsibleError(f"Invalid auth method. Please use universal_auth, oidc_auth, or token_auth. You provided {method}")
-
-      return client
-
-
+        
+        try:
+            return authenticator.authenticate()
+        except (ImportError, ValueError) as e:
+            raise AnsibleError(str(e))
 
     def run(self, terms, variables=None, **kwargs):
-
         self.set_options(var_options=variables, direct=kwargs)
-        if not HAS_INFISICAL:
-            raise AnsibleError("Please pip install infisicalsdk to use the infisical_vault lookup module.")
 
-        client = self.get_sdk_client()
+        client = self._get_sdk_client(client=kwargs.get('client'))
 
-        secretName = kwargs.get('secret_name')
-        asDict = kwargs.get('as_dict')
-        envSlug = kwargs.get('env_slug')
+        secret_name = kwargs.get('secret_name')
+        as_dict = kwargs.get('as_dict')
+        env_slug = kwargs.get('env_slug')
         path = kwargs.get('path')
         project_id = kwargs.get('project_id')
 
-        if secretName:
-            return self.get_single_secret(
-                client,
-                project_id,
-                secretName,
-                envSlug,
-                path,
-            )
+        if secret_name:
+            return self._get_single_secret(client, project_id, secret_name, env_slug, path)
         else:
-            return self.get_all_secrets(client, project_id, envSlug, path, asDict)
+            return self._get_all_secrets(client, project_id, env_slug, path, as_dict)
 
-    def get_single_secret(
-            self,
-            client,
-            project_id,
-            secret_name,
-            environment,
-            path
-    ):
+    def _get_single_secret(self, client, project_id, secret_name, environment, path):
+        """Fetch a single secret by name."""
         try:
             secret = client.secrets.get_secret_by_name(
                 secret_name=secret_name,
@@ -258,12 +207,12 @@ class LookupModule(LookupBase):
                 environment_slug=environment,
                 secret_path=path
             )
-
             return [{"value": secret.secretValue, "key": secret.secretKey}]
         except Exception as e:
-            raise AnsibleError(f"Error fetching single secret {e}")
+            raise AnsibleError(f"Error fetching secret '{secret_name}': {e}")
 
-    def get_all_secrets(self, client, project_id, environment="dev", path="/", asDict=False):
+    def _get_all_secrets(self, client, project_id, environment="dev", path="/", as_dict=False):
+        """Fetch all secrets within the specified scope."""
         try:
             secrets = client.secrets.list_secrets(
                 project_id=project_id,
@@ -271,10 +220,9 @@ class LookupModule(LookupBase):
                 secret_path=path
             )
 
-            if asDict:
+            if as_dict:
                 return [{s.secretKey: s.secretValue for s in secrets.secrets}]
             else:
                 return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
         except Exception as e:
-            raise AnsibleError(f"Error fetching all secrets {e}")
-
+            raise AnsibleError(f"Error fetching secrets: {e}")

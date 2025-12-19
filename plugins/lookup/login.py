@@ -17,16 +17,17 @@ version_added: "1.2.0"
 
 short_description: Perform a login operation against Infisical
 description:
-  - Performs a login operation against Infisical, returning an authenticated SDK client.
-  - The client can be cached and reused across multiple subsequent lookups to avoid repeated authentication.
+  - Performs a login operation against Infisical, returning login data containing an access token.
+  - The login data can be cached and reused across multiple subsequent lookups to avoid repeated authentication.
   - This is useful for playbooks that need to fetch multiple secrets, as it reduces the number of authentication requests.
 
 seealso:
   - ref: infisical.vault.read_secrets lookup
-    description: Use the client with read_secrets to fetch secrets without re-authenticating.
+    description: Use the login_data with read_secrets to fetch secrets without re-authenticating.
 
 notes:
   - This lookup does not use the term string and will not work correctly in loops. Only a single response will be returned.
+  - The returned login_data contains the access token and can be stored in an Ansible variable for reuse.
 
 options:
   auth_method:
@@ -85,37 +86,51 @@ options:
 """
 
 EXAMPLES = r"""
-# Login once and reuse the client for multiple secret lookups
+# Login once and reuse the login_data for multiple secret lookups
 - name: Login to Infisical
   set_fact:
-    infisical_client: "{{ lookup('infisical.vault.login', url='https://app.infisical.com', auth_method='universal_auth', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>') }}"
+    infisical_login: "{{ lookup('infisical.vault.login', url='https://app.infisical.com', auth_method='universal_auth', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>') }}"
 
-- name: Read secrets using the cached client
+- name: Read secrets using the cached login
   set_fact:
-    db_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/database', env_slug='prod') }}"
+    db_secrets: "{{ lookup('infisical.vault.read_secrets', login_data=infisical_login, project_id='<project-id>', path='/database', env_slug='prod') }}"
 
-- name: Read more secrets using the same client (no re-authentication)
+- name: Read more secrets using the same login (no re-authentication)
   set_fact:
-    api_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/api', env_slug='prod') }}"
+    api_secrets: "{{ lookup('infisical.vault.read_secrets', login_data=infisical_login, project_id='<project-id>', path='/api', env_slug='prod') }}"
 
 # Using OIDC authentication
 - name: Login with OIDC
   set_fact:
-    infisical_client: "{{ lookup('infisical.vault.login', auth_method='oidc_auth', identity_id='<identity-id>', jwt='<jwt-token>') }}"
+    infisical_login: "{{ lookup('infisical.vault.login', auth_method='oidc_auth', identity_id='<identity-id>', jwt='<jwt-token>') }}"
 
 # Using token authentication
 - name: Login with token
   set_fact:
-    infisical_client: "{{ lookup('infisical.vault.login', auth_method='token_auth', token='<your-token>') }}"
+    infisical_login: "{{ lookup('infisical.vault.login', auth_method='token_auth', token='<your-token>') }}"
+
+# Display login info (for debugging - avoid in production as it exposes the token)
+- name: Show login data structure
+  debug:
+    msg: "Logged in to {{ infisical_login.url }}"
 """
 
 RETURN = r"""
 _raw:
   description:
-    - The authenticated Infisical SDK client instance.
-    - This client can be passed to other lookups via the C(client) parameter to avoid re-authentication.
+    - A dictionary containing login data that can be passed to other lookups.
+    - Contains the URL and access token needed for subsequent API calls.
   type: list
-  elements: object
+  elements: dict
+  contains:
+    url:
+      description: The Infisical instance URL used for authentication.
+      type: str
+      returned: always
+    access_token:
+      description: The access token for API authentication. Pass this via login_data to read_secrets.
+      type: str
+      returned: always
 """
 
 
@@ -135,6 +150,7 @@ class LookupModule(LookupBase):
         )
         
         try:
-            return [authenticator.authenticate()]
+            login_data = authenticator.login()
+            return [login_data]
         except (ImportError, ValueError) as e:
             raise AnsibleError(str(e))

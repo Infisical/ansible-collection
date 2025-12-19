@@ -6,6 +6,7 @@ from ansible.plugins.lookup import LookupBase
 
 from ansible_collections.infisical.vault.plugins.module_utils._authenticator import (
     InfisicalAuthenticator,
+    create_client_from_login_data,
 )
 
 
@@ -17,8 +18,8 @@ author:
 short_description: Look up secrets stored in Infisical
 description:
   - Retrieve secrets from Infisical, granted the caller has the right permissions to access the secret.
-  - Secrets can be located either by their name for individual secret loopups or by environment/folder path to return all secrets within the given scope.
-  - You can either provide authentication credentials directly, or use C(client) from a previous C(infisical.vault.login) lookup to reuse an authenticated session.
+  - Secrets can be located either by their name for individual secret lookups or by environment/folder path to return all secrets within the given scope.
+  - You can either provide authentication credentials directly, or use C(login_data) from a previous C(infisical.vault.login) lookup to reuse an authenticated session.
 
 seealso:
   - ref: infisical.vault.login lookup
@@ -26,13 +27,13 @@ seealso:
 
 options:
 
-  client:
+  login_data:
     description:
-      - An authenticated Infisical SDK client from a previous C(infisical.vault.login) lookup.
-      - When provided, this client will be reused, avoiding re-authentication.
+      - Login data from a previous C(infisical.vault.login) lookup.
+      - When provided, the access token from the login data will be used, avoiding re-authentication.
       - This is mutually exclusive with direct authentication options (auth_method, universal_auth_client_id, etc.).
     required: False
-    type: object
+    type: dict
     version_added: 1.2.0
   auth_method:
     description: The method to use to authenticate with Infisical
@@ -133,40 +134,46 @@ vars:
   read_secret_by_name_within_scope: "{{ lookup('infisical.vault.read_secrets', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>', project_id='<project-id>', path='/', env_slug='dev', secret_name='HOST', url='https://app.infisical.com') }}"
   # [{ "key": "HOST", "value": "google.com" }]
 
-# Using client from infisical.vault.login (recommended for multiple lookups)
+# Using login_data from infisical.vault.login (recommended for multiple lookups)
 # This avoids re-authenticating on each call
 - name: Login to Infisical once
   set_fact:
-    infisical_client: "{{ lookup('infisical.vault.login', url='https://app.infisical.com', auth_method='universal_auth', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>') }}"
+    infisical_login: "{{ lookup('infisical.vault.login', url='https://app.infisical.com', auth_method='universal_auth', universal_auth_client_id='<client-id>', universal_auth_client_secret='<client-secret>') }}"
 
-- name: Read database secrets using cached client
+- name: Read database secrets using cached login
   set_fact:
-    db_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/database', env_slug='prod') }}"
+    db_secrets: "{{ lookup('infisical.vault.read_secrets', login_data=infisical_login, project_id='<project-id>', path='/database', env_slug='prod') }}"
 
-- name: Read API secrets using the same client (no re-authentication)
+- name: Read API secrets using the same login (no re-authentication)
   set_fact:
-    api_secrets: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/api', env_slug='prod') }}"
+    api_secrets: "{{ lookup('infisical.vault.read_secrets', login_data=infisical_login, project_id='<project-id>', path='/api', env_slug='prod') }}"
 
-- name: Read a specific secret using cached client
+- name: Read a specific secret using cached login
   set_fact:
-    api_key: "{{ lookup('infisical.vault.read_secrets', client=infisical_client, project_id='<project-id>', path='/api', env_slug='prod', secret_name='API_KEY') }}"
+    api_key: "{{ lookup('infisical.vault.read_secrets', login_data=infisical_login, project_id='<project-id>', path='/api', env_slug='prod', secret_name='API_KEY') }}"
 """
 
 
 class LookupModule(LookupBase):
 
-    def _get_sdk_client(self, client=None):
+    def _get_sdk_client(self, login_data=None):
         """Get an authenticated Infisical SDK client.
         
         Args:
-            client: Optional authenticated client from infisical.vault.login lookup.
+            login_data: Optional login data dict from infisical.vault.login lookup.
+                       Contains url and access_token for authentication.
         
         Returns:
             An authenticated InfisicalSDKClient instance
         """
-        if client is not None:
-            return client
+        # If login_data is provided, create a client using the saved token
+        if login_data is not None:
+            try:
+                return create_client_from_login_data(login_data)
+            except (ImportError, ValueError) as e:
+                raise AnsibleError(str(e))
         
+        # Otherwise, authenticate fresh
         authenticator = InfisicalAuthenticator(
             url=self.get_option('url'),
             auth_method=self.get_option('auth_method'),
@@ -185,7 +192,9 @@ class LookupModule(LookupBase):
     def run(self, terms, variables=None, **kwargs):
         self.set_options(var_options=variables, direct=kwargs)
 
-        client = self._get_sdk_client(client=kwargs.get('client'))
+        # Get login_data if provided
+        login_data = kwargs.get('login_data')
+        client = self._get_sdk_client(login_data=login_data)
 
         secret_name = kwargs.get('secret_name')
         as_dict = kwargs.get('as_dict')

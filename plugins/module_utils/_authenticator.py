@@ -81,6 +81,45 @@ def check_minimum_version(current_version, minimum_version):
     return current_tuple >= minimum_tuple
 
 
+def create_client_from_login_data(login_data):
+    """Create an authenticated SDK client from login data.
+    
+    This function creates a new InfisicalSDKClient and authenticates it
+    using the access token from a previous login.
+    
+    Args:
+        login_data: A dictionary containing:
+            - url: The Infisical instance URL
+            - access_token: The access token from login
+            
+    Returns:
+        An authenticated InfisicalSDKClient instance
+        
+    Raises:
+        ImportError: If the Infisical SDK is not installed
+        ValueError: If login_data is invalid
+    """
+    if not HAS_INFISICAL:
+        raise ImportError(
+            f"The infisicalsdk package is required. Install with: pip install infisicalsdk. Error: {INFISICAL_IMP_ERR}"
+        )
+    
+    if not isinstance(login_data, dict):
+        raise ValueError("login_data must be a dictionary from infisical.vault.login lookup.")
+    
+    url = login_data.get('url')
+    access_token = login_data.get('access_token')
+    
+    if not url or not access_token:
+        raise ValueError("login_data must contain 'url' and 'access_token' keys.")
+    
+    # Create a new client and authenticate with the saved token
+    client = InfisicalSDKClient(host=url)
+    client.auth.token_auth.login(access_token)
+    
+    return client
+
+
 class InfisicalAuthenticator:
     """Authenticator for a single Infisical authentication flow.
     
@@ -88,6 +127,7 @@ class InfisicalAuthenticator:
     All required parameters are passed to the constructor.
     
     Usage:
+        # Get an authenticated client directly
         authenticator = InfisicalAuthenticator(
             url="https://app.infisical.com",
             auth_method="universal_auth",
@@ -95,6 +135,13 @@ class InfisicalAuthenticator:
             client_secret="..."
         )
         client = authenticator.authenticate()
+        
+        # Or get login data that can be stored and reused
+        login_data = authenticator.login()
+        # login_data is a serializable dict that can be stored in Ansible variables
+        
+        # Later, create a client from the stored login data
+        client = create_client_from_login_data(login_data)
     """
     
     def __init__(self, url="https://app.infisical.com", auth_method="universal_auth", **credentials):
@@ -139,11 +186,11 @@ class InfisicalAuthenticator:
             if not credentials.get('token'):
                 raise ValueError("token is required for token_auth.")
     
-    def authenticate(self):
-        """Authenticate with Infisical and return a configured SDK client.
+    def _do_auth(self):
+        """Internal method that performs authentication.
         
         Returns:
-            An authenticated InfisicalSDKClient instance
+            A tuple of (client, access_token)
             
         Raises:
             ValueError: If credentials are invalid
@@ -158,18 +205,59 @@ class InfisicalAuthenticator:
         
         client = InfisicalSDKClient(host=self.url)
         
+        # Perform authentication and capture the access token
         if self.auth_method == AUTH_METHOD_UNIVERSAL_AUTH:
-            client.auth.universal_auth.login(
+            auth_response = client.auth.universal_auth.login(
                 self.credentials['client_id'],
                 self.credentials['client_secret']
             )
+            access_token = auth_response.accessToken
+        
         elif self.auth_method == AUTH_METHOD_OIDC_AUTH:
-            client.auth.oidc_auth.login(
+            auth_response = client.auth.oidc_auth.login(
                 self.credentials['identity_id'],
                 self.credentials['jwt']
             )
+            access_token = auth_response.accessToken
+        
         elif self.auth_method == AUTH_METHOD_TOKEN_AUTH:
-            client.auth.token_auth.login(self.credentials['token'])
+            access_token = self.credentials['token']
+            client.auth.token_auth.login(access_token)
         
         self._client = client
+        return client, access_token
+    
+    def login(self):
+        """Authenticate with Infisical and return serializable login data.
+        
+        This method performs authentication and returns a dictionary containing
+        the URL and access token. This data can be stored in Ansible variables
+        and reused to create new clients without re-authenticating.
+        
+        Returns:
+            A dictionary containing:
+                - url: The Infisical instance URL
+                - access_token: The access token for API calls
+            
+        Raises:
+            ValueError: If credentials are invalid
+            ImportError: If the Infisical SDK is not installed
+        """
+        _, access_token = self._do_auth()
+        return {
+            'url': self.url,
+            'access_token': access_token,
+        }
+    
+    def authenticate(self):
+        """Authenticate with Infisical and return a configured SDK client.
+        
+        Returns:
+            An authenticated InfisicalSDKClient instance
+            
+        Raises:
+            ValueError: If credentials are invalid
+            ImportError: If the Infisical SDK is not installed
+        """
+        client, _ = self._do_auth()
         return client

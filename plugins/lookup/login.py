@@ -20,6 +20,8 @@ description:
   - Performs a login operation against Infisical, returning login data containing an access token.
   - The login data can be cached and reused across multiple subsequent lookups to avoid repeated authentication.
   - This is useful for playbooks that need to fetch multiple secrets, as it reduces the number of authentication requests.
+extends_documentation_fragment:
+  - infisical.vault.auth.lookup_login
 
 seealso:
   - ref: infisical.vault.read_secrets lookup
@@ -28,61 +30,6 @@ seealso:
 notes:
   - This lookup does not use the term string and will not work correctly in loops. Only a single response will be returned.
   - The returned login_data contains the access token and can be stored in an Ansible variable for reuse.
-
-options:
-  auth_method:
-    description: The method to use to authenticate with Infisical
-    required: False
-    type: string
-    default: universal_auth
-    choices:
-      - universal_auth
-      - oidc_auth
-      - token_auth
-    env:
-      - name: INFISICAL_AUTH_METHOD
-  universal_auth_client_id:
-    description: The Machine Identity Client ID used to authenticate
-    env:
-      - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_ID
-      - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_ID
-    required: False
-    type: string
-  universal_auth_client_secret:
-    description: The Machine Identity Client Secret used to authenticate
-    env:
-      - name: UNIVERSAL_AUTH_MACHINE_IDENTITY_CLIENT_SECRET
-      - name: INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET
-    required: False
-    type: string
-  url:
-    description: Point to your self hosted instance of Infisical
-    default: "https://app.infisical.com"
-    env:
-      - name: INFISICAL_URL
-    required: False
-    type: string
-  identity_id:
-    description: The identity ID of the user that should be authenticated (for OIDC auth)
-    env:
-      - name: INFISICAL_MACHINE_IDENTITY_ID
-    required: False
-    type: string
-  jwt:
-    description: The JWT of the user that should be authenticated (for OIDC auth)
-    required: False
-    type: string
-    env:
-      - name: INFISICAL_JWT
-      - name: INFISICAL_OIDC_AUTH_JWT
-  token:
-    description: >
-      An access token used to authenticate with Infisical. This can be either a Machine Identity Token Auth token
-      or a User JWT token. Both token types can be used interchangeably with this field.
-    required: False
-    type: string
-    env:
-      - name: INFISICAL_TOKEN
 """
 
 EXAMPLES = r"""

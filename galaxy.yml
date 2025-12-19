@@ -50,7 +50,7 @@ dependencies: {}
 repository: https://github.com/Infisical/ansible-collection
 
 # The URL to any online docs
-documentation: http://docs.example.com
+documentation: https://infisical.com/docs/integrations/platforms/ansible
 
 # The URL to the homepage of the collection/project
 homepage: https://infisical.com

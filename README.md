@@ -41,6 +41,8 @@ The Infisical Ansible Collection supports Universal Auth, OIDC, and Token Auth f
 The recommended approach is to use the `login` lookup or module to authenticate once and reuse the credentials across multiple tasks. This reduces authentication overhead and makes playbooks cleaner.
 You can also provide the authentication details directly on the plugins.
 
+**Using the login module:**
+
 ```yaml
 - name: Login to Infisical
   infisical.vault.login:
@@ -62,6 +64,27 @@ You can also provide the authentication details directly on the plugins.
 - name: Use the secrets
   debug:
     msg: "Database URL is {{ secrets.secrets.DATABASE_URL }}"
+```
+
+**Using inline credentials:**
+
+```yaml
+- name: Read secrets with inline credentials
+  set_fact:
+    secrets: "{{ lookup('infisical.vault.read_secrets',
+      url='https://app.infisical.com',
+      auth_method='universal_auth',
+      universal_auth_client_id=client_id,
+      universal_auth_client_secret=client_secret,
+      project_id=project_id,
+      env_slug='dev',
+      path='/',
+      as_dict=true
+    ) }}"
+
+- name: Use the secrets
+  debug:
+    msg: "Database URL is {{ secrets.DATABASE_URL }}"
 ```
 
 ### Universal Auth

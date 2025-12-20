@@ -39,7 +39,7 @@ The Infisical Ansible Collection supports Universal Auth, OIDC, and Token Auth f
 ### Login Plugin (Recommended)
 
 The recommended approach is to use the `login` lookup or module to authenticate once and reuse the credentials across multiple tasks. This reduces authentication overhead and makes playbooks cleaner.
-You can also provide the authnetication details directly on the plugins.
+You can also provide the authentication details directly on the plugins.
 
 ```yaml
 - name: Login to Infisical

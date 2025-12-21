@@ -254,8 +254,8 @@ Dynamic secrets generate credentials on-demand with automatic expiration. They s
 - name: Connect to database
   community.postgresql.postgresql_query:
     login_host: localhost
-    login_user: "{{ lease.data.username }}"
-    login_password: "{{ lease.data.password }}"
+    login_user: "{{ lease.data.DB_USERNAME }}"
+    login_password: "{{ lease.data.DB_USERNAME }}"
     db: mydb
     query: "SELECT version();"
 

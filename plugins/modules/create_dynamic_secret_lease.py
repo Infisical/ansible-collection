@@ -64,13 +64,13 @@ EXAMPLES = r"""
 
 - name: Display the generated credentials
   debug:
-    msg: "Username: {{ lease.data.username }}, Password: {{ lease.data.password }}"
+    msg: "Username: {{ lease.data.DB_USERNAME }}, Password: {{ lease.data.DB_PASSWORD }}"
 
 - name: Use credentials with PostgreSQL
   community.postgresql.postgresql_query:
     login_host: localhost
-    login_user: "{{ lease.data.username }}"
-    login_password: "{{ lease.data.password }}"
+    login_user: "{{ lease.data.DB_USERNAME }}"
+    login_password: "{{ lease.data.DB_PASSWORD }}"
     db: mydb
     query: "SELECT version();"
 """

@@ -34,15 +34,9 @@ options:
   new_name:
     description: The new name for the dynamic secret (if renaming).
     type: str
-  data:
-    description:
-      - The provider-specific configuration to update.
-      - This is required by the API but can be an empty dict if only updating other fields.
-    type: dict
-    required: true
   inputs:
     description:
-      - Updated provider inputs.
+      - Updated provider-specific configuration inputs.
       - The structure varies depending on the provider type.
     type: dict
   default_ttl:
@@ -60,6 +54,10 @@ options:
       - Updated list of metadata items with 'key' and 'value'.
     type: list
     elements: dict
+  username_template:
+    description:
+      - The new username template for the dynamic secret.
+    type: str
 
 seealso:
   - module: infisical.vault.login
@@ -81,7 +79,6 @@ EXAMPLES = r"""
     env_slug: "dev"
     path: "/"
     name: "postgres-dev"
-    data: {}
     default_ttl: "2h"
     max_ttl: "48h"
   register: updated_secret
@@ -95,8 +92,18 @@ EXAMPLES = r"""
     path: "/"
     name: "postgres-dev"
     new_name: "postgres-development"
-    data: {}
   register: renamed_secret
+
+# Update dynamic secret with username template
+- name: Update dynamic secret username template
+  infisical.vault.update_dynamic_secret:
+    login_data: "{{ infisical_login.login_data }}"
+    project_slug: "my-project"
+    env_slug: "dev"
+    path: "/"
+    name: "postgres-dev"
+    username_template: "svc_{{identity.name}}_{{random(6)}}"
+  register: updated_secret
 """
 
 RETURN = r"""
@@ -141,6 +148,9 @@ dynamic_secret:
     metadata:
       description: Metadata key-value pairs.
       type: list
+    usernameTemplate:
+      description: The username template for the dynamic secret.
+      type: str
 """
 
 from ansible.module_utils.basic import AnsibleModule
@@ -193,11 +203,11 @@ def run_module():
         path=dict(type='str', default='/'),
         name=dict(type='str', required=True),
         new_name=dict(type='str'),
-        data=dict(type='dict', required=True, no_log=True),
         inputs=dict(type='dict', no_log=True),
         default_ttl=dict(type='str'),
         max_ttl=dict(type='str'),
         metadata=dict(type='list', elements='dict'),
+        username_template=dict(type='str'),
     )
 
     module = AnsibleModule(
@@ -219,7 +229,6 @@ def run_module():
             name=module.params['name'],
             project_slug=module.params['project_slug'],
             environment_slug=module.params['env_slug'],
-            data=module.params['data'],
             path=module.params['path'],
         )
         
@@ -233,6 +242,8 @@ def run_module():
             update_kwargs['max_ttl'] = module.params['max_ttl']
         if module.params.get('metadata') is not None:
             update_kwargs['metadata'] = module.params['metadata']
+        if module.params.get('username_template') is not None:
+            update_kwargs['username_template'] = module.params['username_template']
         
         dynamic_secret = client.dynamic_secrets.update(**update_kwargs)
         

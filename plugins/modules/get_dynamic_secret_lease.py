@@ -175,7 +175,7 @@ def run_module():
             lease=lease.to_dict(),
         )
     except Exception as e:
-        module.fail_json(msg=f"Error getting dynamic secret lease: {e}")
+        module.fail_json(msg=f"Error getting dynamic secret lease: {type(e).__name__}: {e}")
 
 
 def main():

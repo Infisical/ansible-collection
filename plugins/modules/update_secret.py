@@ -288,7 +288,7 @@ def run_module():
             secret=clean_secret_dict(secret.to_dict()),
         )
     except Exception as e:
-        module.fail_json(msg=f"Error updating secret: {e}")
+        module.fail_json(msg=f"Error updating secret: {type(e).__name__}: {e}")
 
 
 def main():

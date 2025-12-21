@@ -335,7 +335,11 @@ def run_module():
             secrets=secrets,
         )
     except Exception as e:
-        module.fail_json(msg=f"Error fetching secrets: {e}")
+        import traceback
+        module.fail_json(
+            msg=f"Error fetching secrets: {type(e).__name__}: {e}",
+            exception=traceback.format_exc()
+        )
 
 
 def main():

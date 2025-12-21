@@ -194,7 +194,7 @@ def run_module():
             dynamic_secret=dynamic_secret.to_dict(),
         )
     except Exception as e:
-        module.fail_json(msg=f"Error deleting dynamic secret: {e}")
+        module.fail_json(msg=f"Error deleting dynamic secret: {type(e).__name__}: {e}")
 
 
 def main():

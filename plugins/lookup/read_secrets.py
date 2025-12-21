@@ -197,7 +197,9 @@ class LookupModule(LookupBase):
             try:
                 return create_client_from_login_data(login_data)
             except (ImportError, ValueError) as e:
-                raise AnsibleError(str(e))
+                raise AnsibleError(f"Configuration error creating client from login_data: {e}")
+            except Exception as e:
+                raise AnsibleError(f"Failed to create client from login_data: {type(e).__name__}: {e}")
         
         # Otherwise, authenticate fresh
         authenticator = InfisicalAuthenticator(
@@ -213,7 +215,9 @@ class LookupModule(LookupBase):
         try:
             return authenticator.authenticate()
         except (ImportError, ValueError) as e:
-            raise AnsibleError(str(e))
+            raise AnsibleError(f"Configuration error during Infisical authentication: {e}")
+        except Exception as e:
+            raise AnsibleError(f"Failed to authenticate with Infisical: {type(e).__name__}: {e}")
 
     def run(self, terms, variables=None, **kwargs):
         self.set_options(var_options=variables, direct=kwargs)

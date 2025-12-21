@@ -180,7 +180,7 @@ def run_module():
     if module.check_mode:
         module.exit_json(
             changed=True,
-            lease={'dynamicSecretName': module.params['dynamic_secret_name']},
+            lease={'id': 'check_mode_mock'},
             dynamic_secret={},
             data={},
         )
@@ -208,7 +208,7 @@ def run_module():
             data=result.data,
         )
     except Exception as e:
-        module.fail_json(msg=f"Error creating dynamic secret lease: {e}")
+        module.fail_json(msg=f"Error creating dynamic secret lease: {type(e).__name__}: {e}")
 
 
 def main():

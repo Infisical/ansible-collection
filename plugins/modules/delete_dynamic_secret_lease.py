@@ -174,7 +174,7 @@ def run_module():
         login_data = module.params.get('login_data')
         client = get_sdk_client(module, login_data=login_data)
         
-        lease = client.dynamic_secrets.leases.delete(
+        lease = client.dynamic_secrets.leases.revoke(
             lease_id=module.params['lease_id'],
             project_slug=module.params['project_slug'],
             environment_slug=module.params['env_slug'],

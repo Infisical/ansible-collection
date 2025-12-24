@@ -100,4 +100,6 @@ class LookupModule(LookupBase):
             login_data = authenticator.login()
             return [login_data]
         except (ImportError, ValueError) as e:
-            raise AnsibleError(str(e))
+            raise AnsibleError(f"Configuration error during Infisical login: {e}")
+        except Exception as e:
+            raise AnsibleError(f"Failed to login to Infisical: {type(e).__name__}: {e}")

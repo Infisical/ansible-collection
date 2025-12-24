@@ -131,7 +131,7 @@ def run_module():
     except (ImportError, ValueError) as e:
         module.fail_json(msg=str(e))
     except Exception as e:
-        module.fail_json(msg=f"Unexpected error during login: {e}")
+        module.fail_json(msg=f"Unexpected error during login: {type(e).__name__}: {e}")
 
 
 def main():

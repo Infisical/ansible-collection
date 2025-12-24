@@ -129,11 +129,25 @@ Token Auth allows you to authenticate directly with an access token. This can be
 - `infisical.vault.read_secrets` - Read secrets from Infisical
 
 ### Modules
+
+**Static Secrets:**
 - `infisical.vault.login` - Authenticate and return reusable login data
 - `infisical.vault.read_secrets` - Read secrets from Infisical
 - `infisical.vault.create_secret` - Create a new secret
 - `infisical.vault.update_secret` - Update an existing secret
 - `infisical.vault.delete_secret` - Delete a secret
+
+**Dynamic Secrets:**
+- `infisical.vault.create_dynamic_secret` - Create a dynamic secret
+- `infisical.vault.get_dynamic_secret` - Get a dynamic secret by name
+- `infisical.vault.update_dynamic_secret` - Update a dynamic secret
+- `infisical.vault.delete_dynamic_secret` - Delete a dynamic secret
+
+**Dynamic Secret Leases:**
+- `infisical.vault.create_dynamic_secret_lease` - Create a lease (generates credentials)
+- `infisical.vault.get_dynamic_secret_lease` - Get lease details
+- `infisical.vault.renew_dynamic_secret_lease` - Renew an existing lease
+- `infisical.vault.delete_dynamic_secret_lease` - Delete/revoke a lease
 
 ## Examples
 
@@ -196,4 +210,61 @@ Token Auth allows you to authenticate directly with an access token. This can be
     env_slug: "dev"
     path: "/"
     secret_name: "API_KEY"
+```
+
+### Dynamic Secrets
+
+Dynamic secrets generate credentials on-demand with automatic expiration. They support various providers like SQL databases, AWS, GCP, Azure, and more.
+
+```yaml
+# Create a dynamic secret for PostgreSQL
+- name: Create a PostgreSQL dynamic secret
+  infisical.vault.create_dynamic_secret:
+    login_data: "{{ infisical_login.login_data }}"
+    project_slug: "my-project"
+    env_slug: "dev"
+    path: "/"
+    name: "postgres-dev"
+    provider_type: "sql-database"
+    inputs:
+      client: "postgres"
+      host: "localhost"
+      port: 5432
+      database: "mydb"
+      username: "admin"
+      password: "admin-password"
+      creationStatement: "CREATE USER \"{{username}}\" WITH PASSWORD '{{password}}';"
+      revocationStatement: "DROP USER \"{{username}}\";"
+    default_ttl: "1h"
+    max_ttl: "24h"
+  register: dynamic_secret
+
+# Create a lease to get credentials
+- name: Get database credentials
+  infisical.vault.create_dynamic_secret_lease:
+    login_data: "{{ infisical_login.login_data }}"
+    project_slug: "my-project"
+    env_slug: "dev"
+    path: "/"
+    dynamic_secret_name: "postgres-dev"
+    ttl: "30m"
+  register: lease
+
+# Use the generated credentials
+- name: Connect to database
+  community.postgresql.postgresql_query:
+    login_host: localhost
+    login_user: "{{ lease.data.DB_USERNAME }}"
+    login_password: "{{ lease.data.DB_PASSWORD }}"
+    db: mydb
+    query: "SELECT version();"
+
+# Revoke the credentials when done
+- name: Delete the lease
+  infisical.vault.delete_dynamic_secret_lease:
+    login_data: "{{ infisical_login.login_data }}"
+    project_slug: "my-project"
+    env_slug: "dev"
+    path: "/"
+    lease_id: "{{ lease.lease.id }}"
 ```

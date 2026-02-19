@@ -34,7 +34,7 @@ You can either call modules by their Fully Qualified Collection Name (FQCN), suc
 
 ## Authentication
 
-The Infisical Ansible Collection supports Universal Auth, OIDC, and Token Auth for authenticating against Infisical.
+The Infisical Ansible Collection supports Universal Auth, OIDC, Token Auth, and LDAP Auth for authenticating against Infisical.
 
 ### Login Plugin (Recommended)
 
@@ -121,6 +121,40 @@ Token Auth allows you to authenticate directly with an access token. This can be
 | -------------- | ------------------------- |
 | auth_method    | `INFISICAL_AUTH_METHOD`   |
 | token          | `INFISICAL_TOKEN`         |
+
+### LDAP Auth
+
+LDAP Auth allows you to authenticate using LDAP credentials. You'll need to provide the machine identity ID along with your LDAP username and password.
+
+> **Note:** LDAP Auth requires `infisicalsdk` version 1.0.16 or newer.
+
+| Parameter Name | Environment Variable Name   |
+| -------------- | --------------------------- |
+| auth_method    | `INFISICAL_AUTH_METHOD`     |
+| identity_id    | `INFISICAL_IDENTITY_ID`     |
+| ldap_username  | `INFISICAL_LDAP_USERNAME`   |
+| ldap_password  | `INFISICAL_LDAP_PASSWORD`   |
+
+**Example using LDAP Auth:**
+
+```yaml
+- name: Login with LDAP
+  infisical.vault.login:
+    url: "https://app.infisical.com"
+    auth_method: ldap_auth
+    identity_id: "{{ ldap_identity_id }}"
+    ldap_username: "{{ ldap_username }}"
+    ldap_password: "{{ ldap_password }}"
+  register: infisical_login
+
+- name: Read secrets using LDAP login
+  infisical.vault.read_secrets:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+  register: secrets
+```
 
 ## Available Plugins and Modules
 

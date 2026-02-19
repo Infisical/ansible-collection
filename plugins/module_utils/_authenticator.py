@@ -11,11 +11,13 @@ __metaclass__ = type
 AUTH_METHOD_UNIVERSAL_AUTH = "universal_auth"
 AUTH_METHOD_OIDC_AUTH = "oidc_auth"
 AUTH_METHOD_TOKEN_AUTH = "token_auth"
+AUTH_METHOD_LDAP_AUTH = "ldap_auth"
 
 SUPPORTED_AUTH_METHODS = [
     AUTH_METHOD_UNIVERSAL_AUTH,
     AUTH_METHOD_OIDC_AUTH,
     AUTH_METHOD_TOKEN_AUTH,
+    AUTH_METHOD_LDAP_AUTH,
 ]
 
 # SDK availability flags
@@ -154,6 +156,7 @@ class InfisicalAuthenticator:
                 - universal_auth: client_id, client_secret
                 - oidc_auth: identity_id, jwt
                 - token_auth: token
+                - ldap_auth: identity_id, ldap_username, ldap_password
         """
         self.url = url
         self.auth_method = auth_method
@@ -185,6 +188,16 @@ class InfisicalAuthenticator:
         elif method == AUTH_METHOD_TOKEN_AUTH:
             if not credentials.get('token'):
                 raise ValueError("token is required for token_auth.")
+        
+        elif method == AUTH_METHOD_LDAP_AUTH:
+            if not check_minimum_version(INFISICAL_VERSION, "1.0.16"):
+                raise ValueError("Please upgrade infisicalsdk to at least 1.0.16 to use ldap_auth.")
+            if not credentials.get('identity_id'):
+                raise ValueError("identity_id is required for ldap_auth.")
+            if not credentials.get('ldap_username'):
+                raise ValueError("ldap_username is required for ldap_auth.")
+            if not credentials.get('ldap_password'):
+                raise ValueError("ldap_password is required for ldap_auth.")
     
     def _do_auth(self):
         """Internal method that performs authentication.
@@ -223,6 +236,14 @@ class InfisicalAuthenticator:
         elif self.auth_method == AUTH_METHOD_TOKEN_AUTH:
             access_token = self.credentials['token']
             client.auth.token_auth.login(access_token)
+        
+        elif self.auth_method == AUTH_METHOD_LDAP_AUTH:
+            auth_response = client.auth.ldap_auth.login(
+                self.credentials['identity_id'],
+                self.credentials['ldap_username'],
+                self.credentials['ldap_password']
+            )
+            access_token = auth_response.accessToken
         
         self._client = client
         return client, access_token

@@ -56,6 +56,15 @@ EXAMPLES = r"""
     auth_method: token_auth
     token: "{{ my_token }}"
   register: infisical_login
+
+# Login with LDAP auth
+- name: Login with LDAP
+  infisical.vault.login:
+    auth_method: ldap_auth
+    identity_id: "{{ identity_id }}"
+    ldap_username: "{{ ldap_user }}"
+    ldap_password: "{{ ldap_pass }}"
+  register: infisical_login
 """
 
 RETURN = r"""
@@ -86,13 +95,15 @@ def run_module():
         auth_method=dict(
             type='str',
             default='universal_auth',
-            choices=['universal_auth', 'oidc_auth', 'token_auth']
+            choices=['universal_auth', 'oidc_auth', 'token_auth', 'ldap_auth']
         ),
         universal_auth_client_id=dict(type='str'),
         universal_auth_client_secret=dict(type='str', no_log=True),
         identity_id=dict(type='str'),
         jwt=dict(type='str', no_log=True),
         token=dict(type='str', no_log=True),
+        ldap_username=dict(type='str'),
+        ldap_password=dict(type='str', no_log=True),
     )
 
     module = AnsibleModule(
@@ -120,6 +131,8 @@ def run_module():
             identity_id=module.params['identity_id'],
             jwt=module.params['jwt'],
             token=module.params['token'],
+            ldap_username=module.params['ldap_username'],
+            ldap_password=module.params['ldap_password'],
         )
         
         login_data = authenticator.login()

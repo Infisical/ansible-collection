@@ -56,6 +56,11 @@ EXAMPLES = r"""
   set_fact:
     infisical_login: "{{ lookup('infisical.vault.login', auth_method='token_auth', token='<your-token>') }}"
 
+# Using LDAP authentication
+- name: Login with LDAP
+  set_fact:
+    infisical_login: "{{ lookup('infisical.vault.login', auth_method='ldap_auth', identity_id='<identity-id>', ldap_username='<ldap-user>', ldap_password='<ldap-pass>') }}"
+
 # Display login info (for debugging - avoid in production as it exposes the token)
 - name: Show login data structure
   debug:
@@ -94,6 +99,8 @@ class LookupModule(LookupBase):
             identity_id=self.get_option('identity_id'),
             jwt=self.get_option('jwt'),
             token=self.get_option('token'),
+            ldap_username=self.get_option('ldap_username'),
+            ldap_password=self.get_option('ldap_password'),
         )
         
         try:

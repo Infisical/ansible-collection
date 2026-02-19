@@ -29,6 +29,7 @@ _AUTH_METHOD_MODULE = """
       - universal_auth
       - oidc_auth
       - token_auth
+      - ldap_auth
 """
 
 _AUTH_METHOD_LOOKUP = """
@@ -41,6 +42,7 @@ _AUTH_METHOD_LOOKUP = """
       - universal_auth
       - oidc_auth
       - token_auth
+      - ldap_auth
     env:
       - name: INFISICAL_AUTH_METHOD
 """
@@ -107,6 +109,16 @@ _TOKEN_AUTH_MODULE = """
     no_log: true
 """
 
+_LDAP_AUTH_MODULE = """
+  ldap_username:
+    description: The LDAP username used to authenticate (for ldap_auth).
+    type: str
+  ldap_password:
+    description: The LDAP password used to authenticate (for ldap_auth).
+    type: str
+    no_log: true
+"""
+
 _TOKEN_AUTH_LOOKUP = """
   token:
     description: >
@@ -116,6 +128,21 @@ _TOKEN_AUTH_LOOKUP = """
     type: string
     env:
       - name: INFISICAL_TOKEN
+"""
+
+_LDAP_AUTH_LOOKUP = """
+  ldap_username:
+    description: The LDAP username used to authenticate (for ldap_auth).
+    required: False
+    type: string
+    env:
+      - name: INFISICAL_LDAP_USERNAME
+  ldap_password:
+    description: The LDAP password used to authenticate (for ldap_auth).
+    required: False
+    type: string
+    env:
+      - name: INFISICAL_LDAP_PASSWORD
 """
 
 _LOGIN_DATA_MODULE = """
@@ -149,19 +176,20 @@ class ModuleDocFragment:
     # Authentication options for login module (no login_data option)
     LOGIN = r"""
 options:
-{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}
+{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}{ldap_auth}
 """.format(
         url=_URL_MODULE,
         auth_method=_AUTH_METHOD_MODULE,
         universal_auth=_UNIVERSAL_AUTH_MODULE,
         oidc_auth=_OIDC_AUTH_MODULE,
         token_auth=_TOKEN_AUTH_MODULE,
+        ldap_auth=_LDAP_AUTH_MODULE,
     )
 
     # Standard authentication options for modules (includes login_data)
     DOCUMENTATION = r"""
 options:
-{login_data}{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}
+{login_data}{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}{ldap_auth}
 {note}
 """.format(
         login_data=_LOGIN_DATA_MODULE,
@@ -170,13 +198,14 @@ options:
         universal_auth=_UNIVERSAL_AUTH_MODULE,
         oidc_auth=_OIDC_AUTH_MODULE,
         token_auth=_TOKEN_AUTH_MODULE,
+        ldap_auth=_LDAP_AUTH_MODULE,
         note=_LOGIN_DATA_NOTE,
     )
 
     # Authentication options for lookup plugins (with env vars, includes login_data)
     LOOKUP = r"""
 options:
-{login_data}{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}
+{login_data}{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}{ldap_auth}
 {note}
 """.format(
         login_data=_LOGIN_DATA_LOOKUP,
@@ -185,17 +214,19 @@ options:
         universal_auth=_UNIVERSAL_AUTH_LOOKUP,
         oidc_auth=_OIDC_AUTH_LOOKUP,
         token_auth=_TOKEN_AUTH_LOOKUP,
+        ldap_auth=_LDAP_AUTH_LOOKUP,
         note=_LOGIN_DATA_NOTE,
     )
 
     # Authentication options for login lookup (no login_data, with env vars)
     LOOKUP_LOGIN = r"""
 options:
-{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}
+{url}{auth_method}{universal_auth}{oidc_auth}{token_auth}{ldap_auth}
 """.format(
         url=_URL_LOOKUP,
         auth_method=_AUTH_METHOD_LOOKUP,
         universal_auth=_UNIVERSAL_AUTH_LOOKUP,
         oidc_auth=_OIDC_AUTH_LOOKUP,
         token_auth=_TOKEN_AUTH_LOOKUP,
+        ldap_auth=_LDAP_AUTH_LOOKUP,
     )

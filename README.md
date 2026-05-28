@@ -161,6 +161,7 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
 ### Lookups
 - `infisical.vault.login` - Authenticate and return reusable login data
 - `infisical.vault.read_secrets` - Read secrets from Infisical
+- `infisical.vault.list_folders` - List folders (directories) in Infisical
 
 ### Modules
 
@@ -170,6 +171,10 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
 - `infisical.vault.create_secret` - Create a new secret
 - `infisical.vault.update_secret` - Update an existing secret
 - `infisical.vault.delete_secret` - Delete a secret
+
+**Folders:**
+- `infisical.vault.create_folder` - Create a folder
+- `infisical.vault.list_folders` - List folders at a given path (optionally recursive)
 
 **Dynamic Secrets:**
 - `infisical.vault.create_dynamic_secret` - Create a dynamic secret
@@ -245,6 +250,56 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
     path: "/"
     secret_name: "API_KEY"
 ```
+
+### Managing Folders
+
+Folders organize secrets into hierarchical paths.
+
+```yaml
+# Create a top-level folder
+- name: Create services folder
+  infisical.vault.create_folder:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+    name: "services"
+
+# Create a nested folder
+- name: Create backend folder under /services
+  infisical.vault.create_folder:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/services"
+    name: "backend"
+    description: "Secrets for the backend service"
+
+# List folders at a path
+- name: List folders at root
+  infisical.vault.list_folders:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+  register: result
+
+- name: Show folder names
+  debug:
+    msg: "{{ result.folders | map(attribute='name') | list }}"
+
+# Recursive listing
+- name: List all folders under /services
+  infisical.vault.list_folders:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/services"
+    recursive: true
+  register: result
+```
+
+> **Note:** The Infisical Python SDK does not currently expose folder update or delete operations, so the collection does not provide those modules yet.
 
 ### Dynamic Secrets
 

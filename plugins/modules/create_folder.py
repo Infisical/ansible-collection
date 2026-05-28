@@ -11,6 +11,11 @@ author:
 description:
   - Create a new folder in Infisical at the specified path within a given project and environment.
   - Folders are used to organize secrets into hierarchical directories.
+  - The module is idempotent. If a folder with the same name already exists at the parent
+    path, the existing folder is returned with C(changed=False). When the existing folder's
+    C(description) differs from the requested one, a warning is emitted because the Infisical
+    Python SDK does not currently support updating folders.
+  - Requires permission to list folders at the parent C(path) for the idempotency check.
 extends_documentation_fragment:
   - infisical.vault.auth
 
@@ -192,12 +197,36 @@ def run_module():
         login_data = module.params.get('login_data')
         client = get_sdk_client(module, login_data=login_data)
 
+        name = module.params['name']
+        parent_path = module.params['path']
+        requested_description = module.params.get('description')
+
+        listing = client.folders.list_folders(
+            project_id=module.params['project_id'],
+            environment_slug=module.params['env_slug'],
+            path=parent_path,
+            recursive=False,
+        )
+
+        existing = next((f for f in listing.folders if f.name == name), None)
+
+        if existing is not None:
+            existing_dict = existing.to_dict()
+            if requested_description is not None and existing_dict.get('description') != requested_description:
+                module.warn(
+                    f"Folder '{name}' at '{parent_path}' already exists with description "
+                    f"{existing_dict.get('description')!r}, but the requested description is "
+                    f"{requested_description!r}. The Infisical SDK does not support folder "
+                    f"updates, so the description was not changed."
+                )
+            module.exit_json(changed=False, folder=existing_dict)
+
         folder = client.folders.create_folder(
-            name=module.params['name'],
+            name=name,
             environment_slug=module.params['env_slug'],
             project_id=module.params['project_id'],
-            path=module.params['path'],
-            description=module.params.get('description'),
+            path=parent_path,
+            description=requested_description,
         )
 
         module.exit_json(

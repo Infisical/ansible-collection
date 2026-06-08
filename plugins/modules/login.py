@@ -136,10 +136,23 @@ def run_module():
         )
         
         login_data = authenticator.login()
-        
+
+        # For token_auth the access_token returned in login_data is the
+        # same string as the input ``token`` parameter.  Because that
+        # parameter is marked ``no_log=True``, Ansible's
+        # ``remove_values()`` would replace the token inside login_data
+        # with the literal string "VALUE_SPECIFIED_IN_NO_LOG_PARAMETER",
+        # corrupting the credential for any downstream module that
+        # consumes ``login_data``.  Removing the value from
+        # ``no_log_values`` before ``exit_json`` prevents the
+        # replacement while still keeping the invocation args hidden.
+        if module.params['auth_method'] == 'token_auth' and module.params.get('token'):
+            module.no_log_values.discard(module.params['token'])
+
         module.exit_json(
             changed=False,
-            login_data=login_data
+            login_data=login_data,
+            _ansible_no_log=True,
         )
     except (ImportError, ValueError) as e:
         module.fail_json(msg=str(e))

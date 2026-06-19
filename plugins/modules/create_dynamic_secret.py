@@ -42,7 +42,7 @@ options:
     description:
       - The provider-specific configuration inputs.
       - The structure varies depending on the provider type.
-      - Check the Infisical API documentation for the specific provider inputs: [Dynamic Secrets API Documentation](https://infisical.com/docs/api-reference/endpoints/dynamic-secrets/create#body-provider)
+      - "Check the Infisical API documentation for the specific provider inputs: https://infisical.com/docs/api-reference/endpoints/dynamic-secrets/create#body-provider"
     type: dict
     required: true
   default_ttl:

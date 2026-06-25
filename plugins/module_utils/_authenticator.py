@@ -7,6 +7,11 @@ plugins and modules. It uses the Infisical Python SDK for all operations.
 from __future__ import absolute_import, division, print_function
 __metaclass__ = type
 
+try:
+    from urllib.parse import urlparse
+except ImportError:  # Python 2 fallback (collection targets py3, kept for safety)
+    from urlparse import urlparse
+
 # Authentication method constants
 AUTH_METHOD_UNIVERSAL_AUTH = "universal_auth"
 AUTH_METHOD_OIDC_AUTH = "oidc_auth"
@@ -83,6 +88,39 @@ def check_minimum_version(current_version, minimum_version):
     return current_tuple >= minimum_tuple
 
 
+def validate_instance_url(url):
+    """Validate the Infisical instance URL before handing it to the SDK.
+
+    The SDK passes the host straight to an HTTP client, so an unvalidated value
+    (e.g. supplied via extra-vars or inventory in a shared AWX/Tower setup) could
+    point the controller at an internal service. Restricting the scheme to
+    http/https and requiring a hostname is a cheap guard against accidental or
+    malicious SSRF-style targets such as ``file://`` or scheme-less values.
+
+    Args:
+        url: The Infisical instance URL.
+
+    Returns:
+        The validated URL unchanged.
+
+    Raises:
+        ValueError: If the URL is empty, not a string, or not a valid http(s) URL.
+    """
+    if not url or not isinstance(url, str):
+        raise ValueError("Infisical instance 'url' must be a non-empty string.")
+
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(
+            f"Invalid Infisical instance 'url' scheme {parsed.scheme!r}: "
+            "only 'http' and 'https' are supported."
+        )
+    if not parsed.netloc:
+        raise ValueError(f"Invalid Infisical instance 'url' {url!r}: missing hostname.")
+
+    return url
+
+
 def create_client_from_login_data(login_data):
     """Create an authenticated SDK client from login data.
     
@@ -114,7 +152,9 @@ def create_client_from_login_data(login_data):
     
     if not url or not access_token:
         raise ValueError("login_data must contain 'url' and 'access_token' keys.")
-    
+
+    validate_instance_url(url)
+
     # Create a new client and authenticate with the saved token
     client = InfisicalSDKClient(host=url)
     client.auth.token_auth.login(access_token)
@@ -215,7 +255,8 @@ class InfisicalAuthenticator:
             )
         
         self._validate()
-        
+        validate_instance_url(self.url)
+
         client = InfisicalSDKClient(host=self.url)
         
         # Perform authentication and capture the access token

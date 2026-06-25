@@ -187,12 +187,6 @@ def run_module():
         supports_check_mode=True,
     )
 
-    if module.check_mode:
-        module.exit_json(
-            changed=True,
-            folder={'name': module.params['name'], 'path': module.params['path']},
-        )
-
     try:
         login_data = module.params.get('login_data')
         client = get_sdk_client(module, login_data=login_data)
@@ -201,6 +195,9 @@ def run_module():
         parent_path = module.params['path']
         requested_description = module.params.get('description')
 
+        # Listing folders is a read-only operation, so it runs in check mode too.
+        # This keeps the dry-run result accurate: an already-existing folder is
+        # reported as changed=False, matching what a real run would do.
         listing = client.folders.list_folders(
             project_id=module.params['project_id'],
             environment_slug=module.params['env_slug'],
@@ -221,13 +218,23 @@ def run_module():
                 )
             module.exit_json(changed=False, folder=existing_dict)
 
-        folder = client.folders.create_folder(
+        # Creating the folder is the only mutating operation; skip it in check mode.
+        if module.check_mode:
+            module.exit_json(
+                changed=True,
+                folder={'name': name, 'path': parent_path},
+            )
+
+        create_kwargs = dict(
             name=name,
             environment_slug=module.params['env_slug'],
             project_id=module.params['project_id'],
             path=parent_path,
-            description=requested_description,
         )
+        if requested_description is not None:
+            create_kwargs['description'] = requested_description
+
+        folder = client.folders.create_folder(**create_kwargs)
 
         module.exit_json(
             changed=True,

@@ -178,6 +178,15 @@ def run_module():
         supports_check_mode=True,
     )
 
+    # Validate certificate_id before auth or check_mode to fail fast on bad input
+    certificate_id = module.params['certificate_id']
+    uuid_pattern = re.compile(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        re.IGNORECASE
+    )
+    if not uuid_pattern.match(certificate_id):
+        module.fail_json(msg="certificate_id must be a valid UUID, got: %s" % certificate_id)
+
     if module.check_mode:
         module.exit_json(
             changed=True,
@@ -192,15 +201,6 @@ def run_module():
     try:
         login_data = module.params.get('login_data')
         client = get_sdk_client(module, login_data=login_data)
-
-        certificate_id = module.params['certificate_id']
-
-        uuid_pattern = re.compile(
-            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
-            re.IGNORECASE
-        )
-        if not uuid_pattern.match(certificate_id):
-            module.fail_json(msg="certificate_id must be a valid UUID, got: %s" % certificate_id)
 
         request_body = {}
         if module.params.get("remove_roots_from_chain") is not None:

@@ -5,7 +5,7 @@ DOCUMENTATION = r"""
 ---
 module: issue_certificate
 short_description: Issue a certificate from Infisical Certificate Manager
-version_added: "1.3.0"
+version_added: "1.2.0"
 author:
   - Infisical Inc.
 description:
@@ -272,7 +272,9 @@ certificate_chain:
   returned: when status is 'issued'
   type: str
 private_key:
-  description: The PEM-encoded private key (only returned for managed-key issuance, not CSR).
+  description:
+    - The PEM-encoded private key (only returned for managed-key issuance, not CSR).
+    - This value is sensitive. Use C(no_log=true) on the task to prevent it from appearing in Ansible logs.
   returned: when status is 'issued' and no CSR was provided
   type: str
 serial_number:
@@ -326,6 +328,8 @@ def get_sdk_client(module, login_data=None):
             identity_id=module.params['identity_id'],
             jwt=module.params['jwt'],
             token=module.params['token'],
+            ldap_username=module.params['ldap_username'],
+            ldap_password=module.params['ldap_password'],
         )
         return authenticator.authenticate()
     except (ImportError, ValueError) as e:
@@ -413,13 +417,15 @@ def run_module():
         auth_method=dict(
             type='str',
             default='universal_auth',
-            choices=['universal_auth', 'oidc_auth', 'token_auth']
+            choices=['universal_auth', 'oidc_auth', 'token_auth', 'ldap_auth']
         ),
         universal_auth_client_id=dict(type='str'),
         universal_auth_client_secret=dict(type='str', no_log=True),
         identity_id=dict(type='str'),
         jwt=dict(type='str', no_log=True),
         token=dict(type='str', no_log=True),
+        ldap_username=dict(type='str'),
+        ldap_password=dict(type='str', no_log=True),
         # Certificate options
         profile_id=dict(type='str', required=True),
         application_id=dict(type='str'),
@@ -506,7 +512,7 @@ def run_module():
 
         cert_data = data.get("certificate")
         request_id = data.get("certificateRequestId", "")
-        status = data.get("status", "issued")
+        status = data.get("status") or ("issued" if cert_data else "pending")
         message = data.get("message")
 
         result = dict(

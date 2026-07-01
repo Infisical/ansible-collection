@@ -72,18 +72,51 @@ options:
     type: str
     choices:
       - RSA_2048
+      - RSA_3072
       - RSA_4096
       - EC_prime256v1
       - EC_secp384r1
+      - EC_secp521r1
+      - ML-DSA-44
+      - ML-DSA-65
+      - ML-DSA-87
+      - SLH-DSA-SHA2-128f
+      - SLH-DSA-SHA2-128s
+      - SLH-DSA-SHA2-192f
+      - SLH-DSA-SHA2-192s
+      - SLH-DSA-SHA2-256f
+      - SLH-DSA-SHA2-256s
+      - SLH-DSA-SHAKE-128f
+      - SLH-DSA-SHAKE-128s
+      - SLH-DSA-SHAKE-192f
+      - SLH-DSA-SHAKE-192s
+      - SLH-DSA-SHAKE-256f
+      - SLH-DSA-SHAKE-256s
   signature_algorithm:
     description: The signature algorithm used to sign the certificate.
     type: str
     choices:
-      - SHA256_WITH_RSA
-      - SHA384_WITH_RSA
-      - SHA512_WITH_RSA
-      - SHA256_WITH_ECDSA
-      - SHA384_WITH_ECDSA
+      - RSA-SHA256
+      - RSA-SHA384
+      - RSA-SHA512
+      - ECDSA-SHA256
+      - ECDSA-SHA384
+      - ECDSA-SHA512
+      - ML-DSA-44
+      - ML-DSA-65
+      - ML-DSA-87
+      - SLH-DSA-SHA2-128f
+      - SLH-DSA-SHA2-128s
+      - SLH-DSA-SHA2-192f
+      - SLH-DSA-SHA2-192s
+      - SLH-DSA-SHA2-256f
+      - SLH-DSA-SHA2-256s
+      - SLH-DSA-SHAKE-128f
+      - SLH-DSA-SHAKE-128s
+      - SLH-DSA-SHAKE-192f
+      - SLH-DSA-SHAKE-192s
+      - SLH-DSA-SHAKE-256f
+      - SLH-DSA-SHAKE-256s
   alt_names:
     description:
       - A list of Subject Alternative Names (SANs) for the certificate.
@@ -170,6 +203,7 @@ EXAMPLES = r"""
       - type: DNS
         value: "www.api.example.com"
   register: cert
+  no_log: true
 
 - name: Write certificate to file
   ansible.builtin.copy:
@@ -201,7 +235,7 @@ EXAMPLES = r"""
     common_name: "db.internal"
     ttl: "30d"
     key_algorithm: EC_prime256v1
-    signature_algorithm: SHA256_WITH_ECDSA
+    signature_algorithm: ECDSA-SHA256
     alt_names:
       - type: IP
         value: "10.0.1.5"
@@ -309,7 +343,7 @@ def build_request_body(params):
     if params.get("csr"):
         body["csr"] = params["csr"]
 
-    if params.get("remove_roots_from_chain"):
+    if params.get("remove_roots_from_chain") is not None:
         body["removeRootsFromChain"] = params["remove_roots_from_chain"]
 
     if params.get("metadata"):
@@ -398,13 +432,30 @@ def run_module():
         not_after=dict(type='str'),
         key_algorithm=dict(
             type='str',
-            choices=['RSA_2048', 'RSA_4096', 'EC_prime256v1', 'EC_secp384r1']
+            choices=[
+                'RSA_2048', 'RSA_3072', 'RSA_4096',
+                'EC_prime256v1', 'EC_secp384r1', 'EC_secp521r1',
+                'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87',
+                'SLH-DSA-SHA2-128f', 'SLH-DSA-SHA2-128s',
+                'SLH-DSA-SHA2-192f', 'SLH-DSA-SHA2-192s',
+                'SLH-DSA-SHA2-256f', 'SLH-DSA-SHA2-256s',
+                'SLH-DSA-SHAKE-128f', 'SLH-DSA-SHAKE-128s',
+                'SLH-DSA-SHAKE-192f', 'SLH-DSA-SHAKE-192s',
+                'SLH-DSA-SHAKE-256f', 'SLH-DSA-SHAKE-256s',
+            ]
         ),
         signature_algorithm=dict(
             type='str',
             choices=[
-                'SHA256_WITH_RSA', 'SHA384_WITH_RSA', 'SHA512_WITH_RSA',
-                'SHA256_WITH_ECDSA', 'SHA384_WITH_ECDSA'
+                'RSA-SHA256', 'RSA-SHA384', 'RSA-SHA512',
+                'ECDSA-SHA256', 'ECDSA-SHA384', 'ECDSA-SHA512',
+                'ML-DSA-44', 'ML-DSA-65', 'ML-DSA-87',
+                'SLH-DSA-SHA2-128f', 'SLH-DSA-SHA2-128s',
+                'SLH-DSA-SHA2-192f', 'SLH-DSA-SHA2-192s',
+                'SLH-DSA-SHA2-256f', 'SLH-DSA-SHA2-256s',
+                'SLH-DSA-SHAKE-128f', 'SLH-DSA-SHAKE-128s',
+                'SLH-DSA-SHAKE-192f', 'SLH-DSA-SHAKE-192s',
+                'SLH-DSA-SHAKE-256f', 'SLH-DSA-SHAKE-256s',
             ]
         ),
         alt_names=dict(type='list', elements='dict'),

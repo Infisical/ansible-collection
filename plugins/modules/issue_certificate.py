@@ -391,6 +391,8 @@ def build_request_body(params):
 
     if params.get("basic_constraints"):
         bc = params["basic_constraints"]
+        if "is_ca" not in bc:
+            raise ValueError("basic_constraints requires 'is_ca' to be set")
         attributes["basicConstraints"] = {
             "isCA": bc["is_ca"],
         }

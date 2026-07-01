@@ -116,6 +116,8 @@ certificate_request_id:
   type: str
 """
 
+import re
+
 from ansible.module_utils.basic import AnsibleModule
 
 from ansible_collections.infisical.vault.plugins.module_utils._authenticator import (
@@ -180,6 +182,10 @@ def run_module():
         module.exit_json(
             changed=True,
             certificate='<check_mode>',
+            issuing_ca_certificate='<check_mode>',
+            certificate_chain='<check_mode>',
+            serial_number='<check_mode>',
+            certificate_id='<check_mode>',
             certificate_request_id='<check_mode>',
         )
 
@@ -188,6 +194,13 @@ def run_module():
         client = get_sdk_client(module, login_data=login_data)
 
         certificate_id = module.params['certificate_id']
+
+        uuid_pattern = re.compile(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+            re.IGNORECASE
+        )
+        if not uuid_pattern.match(certificate_id):
+            module.fail_json(msg="certificate_id must be a valid UUID, got: %s" % certificate_id)
 
         request_body = {}
         if module.params.get("remove_roots_from_chain") is not None:

@@ -68,7 +68,9 @@ options:
       - Mutually exclusive with C(ttl).
     type: str
   key_algorithm:
-    description: The key algorithm for the certificate key pair (managed mode only).
+    description:
+      - The key algorithm for the certificate key pair (managed mode only).
+      - Mutually exclusive with C(csr) since the key algorithm is extracted from the CSR.
     type: str
     choices:
       - RSA_2048
@@ -159,7 +161,6 @@ options:
   remove_roots_from_chain:
     description: Whether to remove root CA certificates from the returned chain.
     type: bool
-    default: false
   metadata:
     description:
       - A list of metadata key-value pairs to attach to the certificate.
@@ -462,7 +463,7 @@ def run_module():
         key_usages=dict(type='list', elements='str'),
         extended_key_usages=dict(type='list', elements='str'),
         basic_constraints=dict(type='dict'),
-        remove_roots_from_chain=dict(type='bool', default=False),
+        remove_roots_from_chain=dict(type='bool'),
         metadata=dict(type='list', elements='dict'),
     )
 
@@ -472,6 +473,10 @@ def run_module():
         mutually_exclusive=[
             ('ttl', 'not_before'),
             ('ttl', 'not_after'),
+            ('csr', 'key_algorithm'),
+        ],
+        required_together=[
+            ('not_before', 'not_after'),
         ],
     )
 

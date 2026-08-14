@@ -161,6 +161,7 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
 ### Lookups
 - `infisical.vault.login` - Authenticate and return reusable login data
 - `infisical.vault.read_secrets` - Read secrets from Infisical
+- `infisical.vault.read_folders` - Read secret folders from Infisical
 
 ### Modules
 
@@ -170,6 +171,12 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
 - `infisical.vault.create_secret` - Create a new secret
 - `infisical.vault.update_secret` - Update an existing secret
 - `infisical.vault.delete_secret` - Delete a secret
+
+**Secret Folders:**
+- `infisical.vault.create_folder` - Create a new folder
+- `infisical.vault.read_folders` - List folders at a path, or get one by ID
+- `infisical.vault.update_folder` - Rename or re-describe an existing folder
+- `infisical.vault.delete_folder` - Delete a folder
 
 **Dynamic Secrets:**
 - `infisical.vault.create_dynamic_secret` - Create a dynamic secret
@@ -244,6 +251,72 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
     env_slug: "dev"
     path: "/"
     secret_name: "API_KEY"
+```
+
+### Managing Folders (CRUD)
+
+Folders are the path namespace the secret modules address with `path`. Create one before writing secrets into it.
+
+> `update_folder` and `delete_folder` require a version of the `infisicalsdk` Python package that includes folder update and delete support. The modules fail with a clear message when the installed SDK is too old.
+
+```yaml
+- name: Create a folder
+  infisical.vault.create_folder:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+    name: "services"
+    description: "Per-service secrets"
+  register: created_folder
+
+- name: List the folders at the root
+  infisical.vault.read_folders:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+  register: folders
+
+- name: Show the folder names
+  debug:
+    msg: "{{ folders.folders | map(attribute='name') | list }}"
+
+- name: Get a single folder by ID
+  infisical.vault.read_folders:
+    login_data: "{{ infisical_login.login_data }}"
+    folder_id: "{{ created_folder.folder.id }}"
+  register: one_folder
+
+- name: Rename the folder (update accepts only a folder ID, not a name)
+  infisical.vault.update_folder:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+    folder_id: "{{ created_folder.folder.id }}"
+    name: "apps"
+
+- name: Delete the folder and everything inside it
+  infisical.vault.delete_folder:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "{{ project_id }}"
+    env_slug: "dev"
+    path: "/"
+    folder_id_or_name: "apps"
+    force_delete: true
+```
+
+Folders can also be read inline with the lookup plugin:
+
+```yaml
+- name: Read folders with a lookup
+  set_fact:
+    folder_names: "{{ lookup('infisical.vault.read_folders',
+      login_data=infisical_login,
+      project_id=project_id,
+      env_slug='dev',
+      path='/') | map(attribute='name') | list }}"
 ```
 
 ### Dynamic Secrets

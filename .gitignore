@@ -6,6 +6,7 @@ inventory
 test.yml
 __pycache__
 *.tar.gz
+.env
 
 .vscode
 .DS_Store

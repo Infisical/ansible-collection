@@ -41,7 +41,12 @@ options:
     default: false
 
 notes:
-  - Requires a version of the C(infisicalsdk) Python package that supports folder deletion.
+  - Requires C(infisicalsdk) version 1.0.17 or newer.
+  - >-
+    In check mode no folder is deleted and no API call is made. The returned C(folder) still
+    carries every documented field, with C(null) for the values only the server knows.
+    C(folder_id_or_name) is reported as C(id) when it is an ID and as C(name) otherwise, so
+    exactly one of the two is set.
 
 seealso:
   - module: infisical.vault.login
@@ -102,6 +107,10 @@ folder:
   description:
     - The deleted folder.
     - The delete response does not include the folder path.
+    - >-
+      In check mode the folder is not deleted, so only the identifier that was passed in is
+      reported, as C(id) when it is an ID and as C(name) otherwise. Every other field is
+      C(null), since nothing is read back from the server.
   returned: success
   type: dict
   contains:
@@ -143,13 +152,19 @@ from ansible_collections.infisical.vault.plugins.module_utils._authenticator imp
     InfisicalAuthenticator,
     create_client_from_login_data,
 )
+from ansible_collections.infisical.vault.plugins.module_utils._folders import (
+    check_mode_deleted_folder,
+    ensure_folder_sdk_version,
+)
 
 
 def get_sdk_client(module, login_data=None):
     """Get an authenticated Infisical SDK client."""
     if login_data is not None:
         try:
-            return create_client_from_login_data(login_data)
+            ensure_folder_sdk_version()
+            client = create_client_from_login_data(login_data)
+            return client
         except (ImportError, ValueError) as e:
             module.fail_json(msg=str(e))
 
@@ -162,8 +177,12 @@ def get_sdk_client(module, login_data=None):
             identity_id=module.params['identity_id'],
             jwt=module.params['jwt'],
             token=module.params['token'],
+            ldap_username=module.params['ldap_username'],
+            ldap_password=module.params['ldap_password'],
         )
-        return authenticator.authenticate()
+        ensure_folder_sdk_version()
+        client = authenticator.authenticate()
+        return client
     except (ImportError, ValueError) as e:
         module.fail_json(msg=str(e))
 
@@ -175,13 +194,15 @@ def run_module():
         auth_method=dict(
             type='str',
             default='universal_auth',
-            choices=['universal_auth', 'oidc_auth', 'token_auth']
+            choices=['universal_auth', 'oidc_auth', 'token_auth', 'ldap_auth']
         ),
         universal_auth_client_id=dict(type='str'),
         universal_auth_client_secret=dict(type='str', no_log=True),
         identity_id=dict(type='str'),
         jwt=dict(type='str', no_log=True),
         token=dict(type='str', no_log=True),
+        ldap_username=dict(type='str'),
+        ldap_password=dict(type='str', no_log=True),
         project_id=dict(type='str', required=True),
         env_slug=dict(type='str', required=True),
         path=dict(type='str', required=True),
@@ -197,7 +218,7 @@ def run_module():
     if module.check_mode:
         module.exit_json(
             changed=True,
-            folder={'name': module.params['folder_id_or_name'], 'path': module.params['path']},
+            folder=check_mode_deleted_folder(module.params['folder_id_or_name']),
         )
 
     try:

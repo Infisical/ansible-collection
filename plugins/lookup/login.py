@@ -102,7 +102,7 @@ class LookupModule(LookupBase):
             ldap_username=self.get_option('ldap_username'),
             ldap_password=self.get_option('ldap_password'),
         )
-        
+
         try:
             login_data = authenticator.login()
             return [login_data]

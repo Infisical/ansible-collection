@@ -8,6 +8,9 @@ from ansible_collections.infisical.vault.plugins.module_utils._authenticator imp
     InfisicalAuthenticator,
     create_client_from_login_data,
 )
+from ansible_collections.infisical.vault.plugins.module_utils._folders import (
+    ensure_folder_sdk_version,
+)
 
 
 DOCUMENTATION = r"""
@@ -26,6 +29,9 @@ extends_documentation_fragment:
 seealso:
   - ref: infisical.vault.login lookup
     description: Use the login lookup to authenticate once and reuse the session.
+
+notes:
+  - Requires C(infisicalsdk) version 1.0.17 or newer.
 
 options:
   path:
@@ -155,7 +161,9 @@ class LookupModule(LookupBase):
         # If login_data is provided, create a client using the saved token
         if login_data is not None:
             try:
-                return create_client_from_login_data(login_data)
+                ensure_folder_sdk_version()
+                client = create_client_from_login_data(login_data)
+                return client
             except (ImportError, ValueError) as e:
                 raise AnsibleError(f"Configuration error creating client from login_data: {e}")
             except Exception as e:
@@ -175,7 +183,9 @@ class LookupModule(LookupBase):
         )
 
         try:
-            return authenticator.authenticate()
+            ensure_folder_sdk_version()
+            client = authenticator.authenticate()
+            return client
         except (ImportError, ValueError) as e:
             raise AnsibleError(f"Configuration error during Infisical authentication: {e}")
         except Exception as e:

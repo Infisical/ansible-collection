@@ -257,7 +257,7 @@ LDAP Auth allows you to authenticate using LDAP credentials. You'll need to prov
 
 Folders are the path namespace the secret modules address with `path`. Create one before writing secrets into it.
 
-> `update_folder` and `delete_folder` require a version of the `infisicalsdk` Python package that includes folder update and delete support. The modules fail with a clear message when the installed SDK is too old.
+> Folder operations require `infisicalsdk` version 1.0.17 or newer. The modules fail with a clear message when the installed SDK is too old.
 
 ```yaml
 - name: Create a folder

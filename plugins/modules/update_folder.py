@@ -50,7 +50,12 @@ options:
     type: str
 
 notes:
-  - Requires a version of the C(infisicalsdk) Python package that supports folder updates.
+  - Requires C(infisicalsdk) version 1.0.17 or newer.
+  - >-
+    In check mode no folder is updated and no API call is made. The returned C(folder) still
+    carries every documented field, with C(null) for the values only the server knows. C(id)
+    is the C(folder_id) that was passed in, and C(description) is C(null) unless it was set
+    on the task, since the existing description is not read.
 
 seealso:
   - module: infisical.vault.login
@@ -120,7 +125,13 @@ EXAMPLES = r"""
 
 RETURN = r"""
 folder:
-  description: The updated folder.
+  description:
+    - The updated folder.
+    - >-
+      In check mode the folder is not updated, so the requested values are echoed back and
+      every field only the server knows (C(envId), C(parentId), C(version), and the
+      timestamps) is C(null). C(id) is the C(folder_id) that was passed in, and C(path) is
+      the full path the folder would have after the rename.
   returned: success
   type: dict
   contains:
@@ -165,13 +176,19 @@ from ansible_collections.infisical.vault.plugins.module_utils._authenticator imp
     InfisicalAuthenticator,
     create_client_from_login_data,
 )
+from ansible_collections.infisical.vault.plugins.module_utils._folders import (
+    check_mode_updated_folder,
+    ensure_folder_sdk_version,
+)
 
 
 def get_sdk_client(module, login_data=None):
     """Get an authenticated Infisical SDK client."""
     if login_data is not None:
         try:
-            return create_client_from_login_data(login_data)
+            ensure_folder_sdk_version()
+            client = create_client_from_login_data(login_data)
+            return client
         except (ImportError, ValueError) as e:
             module.fail_json(msg=str(e))
 
@@ -184,8 +201,12 @@ def get_sdk_client(module, login_data=None):
             identity_id=module.params['identity_id'],
             jwt=module.params['jwt'],
             token=module.params['token'],
+            ldap_username=module.params['ldap_username'],
+            ldap_password=module.params['ldap_password'],
         )
-        return authenticator.authenticate()
+        ensure_folder_sdk_version()
+        client = authenticator.authenticate()
+        return client
     except (ImportError, ValueError) as e:
         module.fail_json(msg=str(e))
 
@@ -197,13 +218,15 @@ def run_module():
         auth_method=dict(
             type='str',
             default='universal_auth',
-            choices=['universal_auth', 'oidc_auth', 'token_auth']
+            choices=['universal_auth', 'oidc_auth', 'token_auth', 'ldap_auth']
         ),
         universal_auth_client_id=dict(type='str'),
         universal_auth_client_secret=dict(type='str', no_log=True),
         identity_id=dict(type='str'),
         jwt=dict(type='str', no_log=True),
         token=dict(type='str', no_log=True),
+        ldap_username=dict(type='str'),
+        ldap_password=dict(type='str', no_log=True),
         project_id=dict(type='str', required=True),
         env_slug=dict(type='str', required=True),
         path=dict(type='str', required=True),
@@ -220,7 +243,12 @@ def run_module():
     if module.check_mode:
         module.exit_json(
             changed=True,
-            folder={'name': module.params['name'], 'path': module.params['path']},
+            folder=check_mode_updated_folder(
+                folder_id=module.params['folder_id'],
+                parent_path=module.params['path'],
+                name=module.params['name'],
+                description=module.params['description'],
+            ),
         )
 
     try:

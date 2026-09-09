@@ -50,6 +50,15 @@ options:
       When combined with C(as_dict=True), returns a dictionary where keys are secret names and values are full secret objects.
     type: bool
     default: false
+  include_imports:
+    description: >
+      When True, secrets imported from other paths via Infisical secret imports are merged into the result.
+      Imported secrets have lower precedence than secrets defined directly at the given path,
+      so direct secrets always win on key conflicts.
+      This option has no effect when C(secret_name) is provided.
+    type: bool
+    default: false
+    version_added: "1.2.2"
 
 seealso:
   - module: infisical.vault.login
@@ -138,6 +147,19 @@ EXAMPLES = r"""
     as_dict: true
   register: raw_secrets_dict
   # Returns: {"SECRET_NAME": {"id": "...", "secretKey": "SECRET_NAME", "secretValue": "...", "version": 1, ...}, ...}
+
+# Read secrets including those imported from other paths
+- name: Read secrets with imports merged in
+  infisical.vault.read_secrets:
+    login_data: "{{ infisical_login.login_data }}"
+    project_id: "my-project-id"
+    env_slug: "prod"
+    path: "/my-service"
+    include_imports: true
+    as_dict: true
+  register: all_secrets
+  # Returns secrets from /my-service merged with any paths imported into it.
+  # Secrets at /my-service take precedence over imported secrets on key conflicts.
 """
 
 RETURN = r"""
@@ -232,7 +254,7 @@ def get_sdk_client(module, login_data=None):
             return create_client_from_login_data(login_data)
         except (ImportError, ValueError) as e:
             module.fail_json(msg=str(e))
-    
+
     # Otherwise, authenticate fresh
     try:
         authenticator = InfisicalAuthenticator(
@@ -262,22 +284,53 @@ def get_single_secret(client, project_id, secret_name, environment, path, raw=Fa
     return [{"value": secret.secretValue, "key": secret.secretKey}]
 
 
-def get_all_secrets(client, project_id, environment, path, as_dict=False, raw=False):
+def _secret_key(s):
+    """Return the secret key from either an SDK model object or a plain dict."""
+    return s.secretKey if hasattr(s, 'secretKey') else s['secretKey']
+
+
+def _secret_value(s):
+    """Return the secret value from either an SDK model object or a plain dict."""
+    return s.secretValue if hasattr(s, 'secretValue') else s['secretValue']
+
+
+def _secret_to_dict(s):
+    """Return the full secret dict from either an SDK model object or a plain dict."""
+    return s.to_dict() if hasattr(s, 'to_dict') else s
+
+
+def get_all_secrets(client, project_id, environment, path, as_dict=False, raw=False,
+                    include_imports=False):
     """Fetch all secrets within the specified scope."""
     secrets = client.secrets.list_secrets(
         project_id=project_id,
         environment_slug=environment,
-        secret_path=path
+        secret_path=path,
+        include_imports=include_imports,
     )
+
+    # Collect imported secrets first (lower precedence).
+    # When include_imports=True the SDK returns a .imports list where each entry
+    # has its own .secrets list. Direct secrets are added last so they win on
+    # key conflicts when building a dict.
+    # Note: imported secrets may be plain dicts rather than SDK model objects —
+    # use the _secret_* helpers for uniform access.
+    imported = []
+    if include_imports and hasattr(secrets, 'imports') and secrets.imports:
+        for imp in secrets.imports:
+            if hasattr(imp, 'secrets') and imp.secrets:
+                imported.extend(imp.secrets)
+
+    all_secrets = imported + list(secrets.secrets)
 
     if as_dict:
         if raw:
-            return {s.secretKey: clean_secret_dict(s.to_dict()) for s in secrets.secrets}
-        return {s.secretKey: s.secretValue for s in secrets.secrets}
+            return {_secret_key(s): clean_secret_dict(_secret_to_dict(s)) for s in all_secrets}
+        return {_secret_key(s): _secret_value(s) for s in all_secrets}
     else:
         if raw:
-            return [clean_secret_dict(s.to_dict()) for s in secrets.secrets]
-        return [{"value": s.secretValue, "key": s.secretKey} for s in secrets.secrets]
+            return [clean_secret_dict(_secret_to_dict(s)) for s in all_secrets]
+        return [{"value": _secret_value(s), "key": _secret_key(s)} for s in all_secrets]
 
 
 def run_module():
@@ -300,6 +353,7 @@ def run_module():
         secret_name=dict(type='str'),
         as_dict=dict(type='bool', default=False),
         raw=dict(type='bool', default=False),
+        include_imports=dict(type='bool', default=False),
     )
 
     module = AnsibleModule(
@@ -317,19 +371,21 @@ def run_module():
     try:
         login_data = module.params.get('login_data')
         client = get_sdk_client(module, login_data=login_data)
-        
+
         project_id = module.params['project_id']
         env_slug = module.params['env_slug']
         path = module.params['path']
         secret_name = module.params.get('secret_name')
         as_dict = module.params['as_dict']
         raw = module.params['raw']
-        
+        include_imports = module.params['include_imports']
+
         if secret_name:
             secrets = get_single_secret(client, project_id, secret_name, env_slug, path, raw)
         else:
-            secrets = get_all_secrets(client, project_id, env_slug, path, as_dict, raw)
-        
+            secrets = get_all_secrets(client, project_id, env_slug, path, as_dict, raw,
+                                      include_imports)
+
         module.exit_json(
             changed=False,
             secrets=secrets,
@@ -348,4 +404,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

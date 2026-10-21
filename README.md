@@ -28,6 +28,14 @@ The python module dependencies are not installed by `ansible-galaxy`. They can b
 pip install infisicalsdk
 ```
 
+The Infisical SDK uses the CA bundle from the `certifi` package, not the system certificate store. Keep it up to date (version 2026.10.19 or later is required):
+
+```bash
+pip install -U certifi
+```
+
+Ansible itself and tools such as `git` use the operating system's certificate store, so keep the `ca-certificates` package on your control node up to date as well.
+
 ## Using this collection
 
 You can either call modules by their Fully Qualified Collection Name (FQCN), such as `infisical.vault.read_secrets`, or you can call modules by their short name if you list the `infisical.vault` collection in the playbook's `collections` keyword.

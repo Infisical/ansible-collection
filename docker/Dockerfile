@@ -8,12 +8,13 @@ ENV ANSIBLE_CALLBACKS_ENABLED=profile_tasks
 ARG VERSION
 
 RUN apt-get update && apt-get install -y \
+    ca-certificates \
     git \
     openssh-client \
     sshpass \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir ansible infisicalsdk
+RUN pip install --no-cache-dir ansible infisicalsdk "certifi>=2026.10.19"
 
 RUN ansible-galaxy collection install infisical.vault==${VERSION}
 
